@@ -523,6 +523,10 @@
 # value)
 #db_current_version=v1.0
 
+# Valid primary datastore to use in database tests. (string
+# value)
+#db_datastore_ref=mysql
+
 
 [debug]
 

@@ -36,9 +36,11 @@ class BaseDatabaseTest(tempest.test.BaseTestCase):
         cls.catalog_type = CONF.database.catalog_type
         cls.db_flavor_ref = CONF.database.db_flavor_ref
         cls.db_current_version = CONF.database.db_current_version
+        cls.db_datastore_ref = CONF.database.db_datastore_ref
 
         os = cls.get_client_manager()
         cls.os = os
         cls.database_flavors_client = cls.os.database_flavors_client
         cls.os_flavors_client = cls.os.flavors_client
         cls.database_versions_client = cls.os.database_versions_client
+        cls.database_datastores_client = cls.os.database_datastores_client

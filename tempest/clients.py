@@ -120,6 +120,8 @@ from tempest.services.compute.xml.tenant_usages_client import \
 from tempest.services.compute.xml.volumes_extensions_client import \
     VolumesExtensionsClientXML
 from tempest.services.data_processing.v1_1.client import DataProcessingClient
+from tempest.services.database.json.datastores_client import \
+    DatabaseDatastoresClientJSON
 from tempest.services.database.json.flavors_client import \
     DatabaseFlavorsClientJSON
 from tempest.services.database.json.versions_client import \
@@ -388,6 +390,8 @@ class Manager(manager.Manager):
             self.volumes_v2_extension_client = VolumeV2ExtensionClientJSON(
                 self.auth_provider)
             self.hosts_v3_client = HostsV3ClientJSON(self.auth_provider)
+            self.database_datastores_client = DatabaseDatastoresClientJSON(
+                self.auth_provider)
             self.database_flavors_client = DatabaseFlavorsClientJSON(
                 self.auth_provider)
             self.database_versions_client = DatabaseVersionsClientJSON(
