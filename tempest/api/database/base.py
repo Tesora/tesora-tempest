@@ -44,3 +44,4 @@ class BaseDatabaseTest(tempest.test.BaseTestCase):
         cls.os_flavors_client = cls.os.flavors_client
         cls.database_versions_client = cls.os.database_versions_client
         cls.database_datastores_client = cls.os.database_datastores_client
+        cls.database_instances_client = cls.os.database_instances_client

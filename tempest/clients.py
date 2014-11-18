@@ -124,6 +124,8 @@ from tempest.services.database.json.datastores_client import \
     DatabaseDatastoresClientJSON
 from tempest.services.database.json.flavors_client import \
     DatabaseFlavorsClientJSON
+from tempest.services.database.json.instances_client import \
+    DatabaseInstancesClientJSON
 from tempest.services.database.json.versions_client import \
     DatabaseVersionsClientJSON
 from tempest.services.identity.json.identity_client import IdentityClientJSON
@@ -393,6 +395,8 @@ class Manager(manager.Manager):
             self.database_datastores_client = DatabaseDatastoresClientJSON(
                 self.auth_provider)
             self.database_flavors_client = DatabaseFlavorsClientJSON(
+                self.auth_provider)
+            self.database_instances_client = DatabaseInstancesClientJSON(
                 self.auth_provider)
             self.database_versions_client = DatabaseVersionsClientJSON(
                 self.auth_provider)
