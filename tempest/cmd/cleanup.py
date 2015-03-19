@@ -19,18 +19,18 @@ Utility for cleaning up environment after Tempest run
 Runtime Arguments
 -----------------
 
---init-saved-state: Before you can execute cleanup you must initialize
-the saved state by running it with the --init-saved-state flag
+**--init-saved-state**: Before you can execute cleanup you must initialize
+the saved state by running it with the **--init-saved-state** flag
 (creating ./saved_state.json), which protects your deployment from
 cleanup deleting objects you want to keep.  Typically you would run
-cleanup with --init-saved-state prior to a tempest run. If this is not
+cleanup with **--init-saved-state** prior to a tempest run. If this is not
 the case saved_state.json must be edited, removing objects you want
 cleanup to delete.
 
---dry-run: Creates a report (dry_run.json) of the tenants that will be
+**--dry-run**: Creates a report (dry_run.json) of the tenants that will be
 cleaned up (in the "_tenants_to_clean" array), and the global objects
 that will be removed (tenants, users, flavors and images).  Once
-cleanup is executed in normal mode, running it again with --dry-run
+cleanup is executed in normal mode, running it again with **--dry-run**
 should yield an empty report.
 
 **NOTE**: The _tenants_to_clean array in dry-run.json lists the
@@ -38,27 +38,28 @@ tenants that cleanup will loop through and delete child objects, not
 delete the tenant itself. This may differ from the tenants array as you
 can clean the tempest and alternate tempest tenants but by default,
 cleanup deletes the objects in the tempest and alternate tempest tenants
-but does not delete those tenants unless the --delete-tempest-conf-objects
+but does not delete those tenants unless the **--delete-tempest-conf-objects**
 flag is used to force their deletion.
 
 **Normal mode**: running with no arguments, will query your deployment and
 build a list of objects to delete after filtering out the objects found in
-saved_state.json and based on the --delete-tempest-conf-objects flag.
+saved_state.json and based on the **--delete-tempest-conf-objects** flag.
 
 By default the tempest and alternate tempest users and tenants are not
 deleted and the admin user specified in tempest.conf is never deleted.
 
-Please run with --help to see full list of options.
+Please run with **--help** to see full list of options.
 """
 import argparse
 import json
 import sys
 
-from tempest import auth
+from oslo_log import log as logging
+
 from tempest import clients
 from tempest.cmd import cleanup_service
+from tempest.common import cred_provider
 from tempest import config
-from tempest.openstack.common import log as logging
 
 SAVED_STATE_JSON = "saved_state.json"
 DRY_RUN_JSON = "dry_run.json"
@@ -159,7 +160,8 @@ class Cleanup(object):
         kwargs = {"username": CONF.identity.admin_username,
                   "password": CONF.identity.admin_password,
                   "tenant_name": tenant['name']}
-        mgr = clients.Manager(credentials=auth.get_credentials(**kwargs))
+        mgr = clients.Manager(credentials=cred_provider.get_credentials(
+            **kwargs))
         kwargs = {'data': tenant_data,
                   'is_dry_run': is_dry_run,
                   'saved_state_json': None,
@@ -180,7 +182,7 @@ class Cleanup(object):
                                           CONF.identity.admin_username)
         self.admin_id = user['id']
 
-        _, roles = id_cl.list_roles()
+        roles = id_cl.list_roles()
         for role in roles:
             if role['name'] == CONF.identity.admin_role:
                 self.admin_role_id = role['id']
@@ -215,13 +217,13 @@ class Cleanup(object):
     def _add_admin(self, tenant_id):
         id_cl = self.admin_mgr.identity_client
         needs_role = True
-        _, roles = id_cl.list_user_roles(tenant_id, self.admin_id)
+        roles = id_cl.list_user_roles(tenant_id, self.admin_id)
         for role in roles:
             if role['id'] == self.admin_role_id:
                 needs_role = False
                 LOG.debug("User already had admin privilege for this tenant")
         if needs_role:
-            LOG.debug("Adding admin priviledge for : %s" % tenant_id)
+            LOG.debug("Adding admin privilege for : %s" % tenant_id)
             id_cl.assign_user_role(tenant_id, self.admin_id,
                                    self.admin_role_id)
             self.admin_role_added.append(tenant_id)

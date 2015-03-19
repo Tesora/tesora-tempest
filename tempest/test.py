@@ -24,6 +24,9 @@ import urllib
 import uuid
 
 import fixtures
+from oslo_log import log as logging
+from oslo_utils import importutils
+import six
 import testscenarios
 import testtools
 
@@ -32,15 +35,10 @@ from tempest.common import credentials
 import tempest.common.generator.valid_generator as valid
 from tempest import config
 from tempest import exceptions
-from tempest.openstack.common import importutils
-from tempest.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
 
 CONF = config.CONF
-
-# All the successful HTTP status codes from RFC 2616
-HTTP_SUCCESS = (200, 201, 202, 203, 204, 205, 206)
 
 
 def attr(*args, **kwargs):
@@ -65,6 +63,23 @@ def attr(*args, **kwargs):
     return decorator
 
 
+def idempotent_id(id):
+    """Stub for metadata decorator"""
+    if not isinstance(id, six.string_types):
+        raise TypeError('Test idempotent_id must be string not %s'
+                        '' % type(id).__name__)
+    uuid.UUID(id)
+
+    def decorator(f):
+        f = testtools.testcase.attr('id-%s' % id)(f)
+        if f.__doc__:
+            f.__doc__ = 'Test idempotent id: %s\n%s' % (id, f.__doc__)
+        else:
+            f.__doc__ = 'Test idempotent id: %s' % id
+        return f
+    return decorator
+
+
 def get_service_list():
     service_list = {
         'compute': CONF.service_available.nova,
@@ -79,7 +94,8 @@ def get_service_list():
         'object_storage': CONF.service_available.swift,
         'dashboard': CONF.service_available.horizon,
         'telemetry': CONF.service_available.ceilometer,
-        'data_processing': CONF.service_available.sahara
+        'data_processing': CONF.service_available.sahara,
+        'database': CONF.service_available.trove
     }
     return service_list
 
@@ -93,7 +109,7 @@ def services(*args, **kwargs):
     def decorator(f):
         services = ['compute', 'image', 'baremetal', 'volume', 'orchestration',
                     'network', 'identity', 'object_storage', 'dashboard',
-                    'telemetry', 'data_processing']
+                    'telemetry', 'data_processing', 'database']
         for service in args:
             if service not in services:
                 raise exceptions.InvalidServiceTag('%s is not a valid '
@@ -140,35 +156,6 @@ def stresstest(*args, **kwargs):
     return decorator
 
 
-def skip_because(*args, **kwargs):
-    """A decorator useful to skip tests hitting known bugs
-
-    @param bug: bug number causing the test to skip
-    @param condition: optional condition to be True for the skip to have place
-    @param interface: skip the test if it is the same as self._interface
-    """
-    def decorator(f):
-        @functools.wraps(f)
-        def wrapper(self, *func_args, **func_kwargs):
-            skip = False
-            if "condition" in kwargs:
-                if kwargs["condition"] is True:
-                    skip = True
-            elif "interface" in kwargs:
-                if kwargs["interface"] == self._interface:
-                    skip = True
-            else:
-                skip = True
-            if "bug" in kwargs and skip is True:
-                if not kwargs['bug'].isdigit():
-                    raise ValueError('bug must be a valid bug number')
-                msg = "Skipped until Bug: %s is resolved." % kwargs["bug"]
-                raise testtools.TestCase.skipException(msg)
-            return f(self, *func_args, **func_kwargs)
-        return wrapper
-    return decorator
-
-
 def requires_ext(*args, **kwargs):
     """A decorator to skip tests if an extension is not enabled
 
@@ -194,7 +181,6 @@ def is_extension_enabled(extension_name, service):
     """
     config_dict = {
         'compute': CONF.compute_feature_enabled.api_extensions,
-        'compute_v3': CONF.compute_feature_enabled.api_v3_extensions,
         'volume': CONF.volume_feature_enabled.api_extensions,
         'network': CONF.network_feature_enabled.api_extensions,
         'object': CONF.object_storage_feature_enabled.discoverable_apis,
@@ -274,8 +260,8 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             cls.resource_setup()
         except Exception:
             etype, value, trace = sys.exc_info()
-            LOG.info("%s in %s.setUpClass. Invoking tearDownClass." % (
-                cls.__name__, etype))
+            LOG.info("%s raised in %s.setUpClass. Invoking tearDownClass." % (
+                     etype, cls.__name__))
             cls.tearDownClass()
             try:
                 raise etype, value, trace
@@ -321,20 +307,6 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                 del trace  # to avoid circular refs
 
     @classmethod
-    def resource_setup(cls):
-        """Class level resource setup for test cases.
-        """
-        pass
-
-    @classmethod
-    def resource_cleanup(cls):
-        """Class level resource cleanup for test cases.
-        Resource cleanup must be able to handle the case of partially setup
-        resources, in case a failure during `resource_setup` should happen.
-        """
-        pass
-
-    @classmethod
     def skip_checks(cls):
         """Class level skip checks. Subclasses verify in here all
         conditions that might prevent the execution of the entire test class.
@@ -360,6 +332,20 @@ class BaseTestCase(testtools.testcase.WithAttributes,
         # TODO(andreaf) There is a fair amount of code that could me moved from
         # base / test classes in here. Ideally tests should be able to only
         # specify which client is `client` and nothing else.
+        pass
+
+    @classmethod
+    def resource_setup(cls):
+        """Class level resource setup for test cases.
+        """
+        pass
+
+    @classmethod
+    def resource_cleanup(cls):
+        """Class level resource cleanup for test cases.
+        Resource cleanup must be able to handle the case of partially setup
+        resources, in case a failure during `resource_setup` should happen.
+        """
         pass
 
     def setUp(self):
@@ -392,7 +378,7 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                                                    level=None))
 
     @classmethod
-    def get_client_manager(cls, interface=None):
+    def get_client_manager(cls):
         """
         Returns an OpenStack client manager
         """
@@ -406,12 +392,7 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             )
 
         creds = cls.isolated_creds.get_primary_creds()
-        params = dict(credentials=creds, service=cls._service)
-        if getattr(cls, '_interface', None):
-            interface = cls._interface
-        if interface:
-            params['interface'] = interface
-        os = clients.Manager(**params)
+        os = clients.Manager(credentials=creds, service=cls._service)
         return os
 
     @classmethod
@@ -427,13 +408,12 @@ class BaseTestCase(testtools.testcase.WithAttributes,
         """
         Returns an instance of the Identity Admin API client
         """
-        os = clients.AdminManager(interface=cls._interface,
-                                  service=cls._service)
+        os = clients.AdminManager(service=cls._service)
         admin_client = os.identity_client
         return admin_client
 
     @classmethod
-    def set_network_resources(self, network=False, router=False, subnet=False,
+    def set_network_resources(cls, network=False, router=False, subnet=False,
                               dhcp=False):
         """Specify which network resources should be created
 
@@ -446,8 +426,8 @@ class BaseTestCase(testtools.testcase.WithAttributes,
         # in order to ensure that even if it's called multiple times in
         # a chain of overloaded methods, the attribute is set only
         # in the leaf class
-        if not self.network_resources:
-            self.network_resources = {
+        if not cls.network_resources:
+            cls.network_resources = {
                 'network': network,
                 'router': router,
                 'subnet': subnet,
@@ -469,8 +449,7 @@ class NegativeAutoTest(BaseTestCase):
         super(NegativeAutoTest, cls).setUpClass()
         os = cls.get_client_manager()
         cls.client = os.negative_client
-        os_admin = clients.AdminManager(interface=cls._interface,
-                                        service=cls._service)
+        os_admin = clients.AdminManager(service=cls._service)
         cls.admin_client = os_admin.negative_client
 
     @staticmethod

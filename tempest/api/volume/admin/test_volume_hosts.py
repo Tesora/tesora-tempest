@@ -18,11 +18,11 @@ from tempest import test
 
 
 class VolumeHostsAdminV2TestsJSON(base.BaseVolumeAdminTest):
-    _interface = "json"
 
     @test.attr(type='gate')
+    @test.idempotent_id('d5f3efa2-6684-4190-9ced-1c2f526352ad')
     def test_list_hosts(self):
-        _, hosts = self.hosts_client.list_hosts()
+        hosts = self.hosts_client.list_hosts()
         self.assertTrue(len(hosts) >= 2, "No. of hosts are < 2,"
                         "response of list hosts is: % s" % hosts)
 

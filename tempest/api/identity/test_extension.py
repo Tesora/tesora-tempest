@@ -18,12 +18,12 @@ from tempest import test
 
 
 class ExtensionTestJSON(base.BaseIdentityV2AdminTest):
-    _interface = 'json'
 
     @test.attr(type='gate')
+    @test.idempotent_id('85f3f661-f54c-4d48-b563-72ae952b9383')
     def test_list_extensions(self):
         # List all the extensions
-        _, body = self.non_admin_client.list_extensions()
+        body = self.non_admin_client.list_extensions()
         self.assertNotEmpty(body)
         keys = ['name', 'updated', 'alias', 'links',
                 'namespace', 'description']

@@ -18,10 +18,9 @@ from __future__ import print_function
 import logging as std_logging
 import os
 
-from oslo.config import cfg
+from oslo_config import cfg
 
-from tempest.openstack.common import lockutils
-from tempest.openstack.common import log as logging
+from oslo_log import log as logging
 
 
 def register_opt_group(conf, opt_group, options):
@@ -40,7 +39,7 @@ AuthGroup = [
                help="Path to the yaml file that contains the list of "
                     "credentials to use for running tests"),
     cfg.BoolOpt('allow_tenant_isolation',
-                default=False,
+                default=True,
                 help="Allows test cases to create/destroy tenants and "
                      "users. This option requires that OpenStack Identity "
                      "API admin credentials are known. If false, isolated "
@@ -59,6 +58,9 @@ AuthGroup = [
                      "It requires at least `2 * CONC` distinct accounts "
                      "configured in `test_accounts_file`, with CONC == the "
                      "number of concurrent test processes."),
+    cfg.ListOpt('tempest_roles',
+                help="Roles to assign to all users created by tempest",
+                default=[])
 ]
 
 identity_group = cfg.OptGroup(name='identity',
@@ -185,7 +187,9 @@ ComputeGroup = [
                help="Time in seconds between build status checks."),
     cfg.IntOpt('build_timeout',
                default=300,
-               help="Timeout in seconds to wait for an instance to build."),
+               help="Timeout in seconds to wait for an instance to build. "
+                    "Other services that do not define build_timeout will "
+                    "inherit this value."),
     cfg.BoolOpt('run_ssh',
                 default=False,
                 help="Should the tests ssh to instances?"),
@@ -249,9 +253,6 @@ ComputeGroup = [
                choices=['public', 'admin', 'internal',
                         'publicURL', 'adminURL', 'internalURL'],
                help="The endpoint type to use for the compute service."),
-    cfg.StrOpt('catalog_v3_type',
-               default='computev3',
-               help="Catalog type of the Compute v3 service."),
     cfg.StrOpt('path_to_private_key',
                help="Path to a private key file for SSH access to remote "
                     "hosts"),
@@ -278,9 +279,6 @@ compute_features_group = cfg.OptGroup(name='compute-feature-enabled',
                                       title="Enabled Compute Service Features")
 
 ComputeFeaturesGroup = [
-    cfg.BoolOpt('api_v3',
-                default=False,
-                help="If false, skip all nova v3 tests."),
     cfg.BoolOpt('disk_config',
                 default=True,
                 help="If false, skip disk config tests"),
@@ -288,12 +286,6 @@ ComputeFeaturesGroup = [
                 default=['all'],
                 help='A list of enabled compute extensions with a special '
                      'entry all which indicates every extension is enabled. '
-                     'Each extension should be specified with alias name. '
-                     'Empty list indicates all extensions are disabled'),
-    cfg.ListOpt('api_v3_extensions',
-                default=['all'],
-                help='A list of enabled v3 extensions with a special entry all'
-                     ' which indicates every extension is enabled. '
                      'Each extension should be specified with alias name. '
                      'Empty list indicates all extensions are disabled'),
     cfg.BoolOpt('change_password',
@@ -356,26 +348,12 @@ ComputeFeaturesGroup = [
     cfg.BoolOpt('snapshot',
                 default=True,
                 help='Does the test environment support creating snapshot '
-                     'images of running instances?')
+                     'images of running instances?'),
+    cfg.BoolOpt('ec2_api',
+                default=True,
+                help='Does the test environment have the ec2 api running?')
 ]
 
-
-compute_admin_group = cfg.OptGroup(name='compute-admin',
-                                   title="Compute Admin Options")
-
-ComputeAdminGroup = [
-    cfg.StrOpt('username',
-               help="Administrative Username to use for Nova API requests."),
-    cfg.StrOpt('tenant_name',
-               help="Administrative Tenant name to use for Nova API "
-                    "requests."),
-    cfg.StrOpt('password',
-               help="API key to use when authenticating as admin.",
-               secret=True),
-    cfg.StrOpt('domain_name',
-               help="Domain name for authentication as admin (Keystone V3)."
-                    "The same domain applies to user and project"),
-]
 
 image_group = cfg.OptGroup(name='image',
                            title="Image Service Options")
@@ -398,7 +376,15 @@ ImageGroup = [
     cfg.StrOpt('http_image',
                default='http://download.cirros-cloud.net/0.3.1/'
                'cirros-0.3.1-x86_64-uec.tar.gz',
-               help='http accessible image')
+               help='http accessible image'),
+    cfg.IntOpt('build_timeout',
+               default=300,
+               help="Timeout in seconds to wait for an image to "
+                    "become available."),
+    cfg.IntOpt('build_interval',
+               default=1,
+               help="Time in seconds between image operation status "
+                    "checks.")
 ]
 
 image_feature_group = cfg.OptGroup(name='image-feature-enabled',
@@ -467,8 +453,14 @@ NetworkGroup = [
                     "checks."),
     cfg.ListOpt('dns_servers',
                 default=["8.8.8.8", "8.8.4.4"],
-                help="List of dns servers whichs hould be used"
-                     " for subnet creation")
+                help="List of dns servers which should be used"
+                     " for subnet creation"),
+    cfg.StrOpt('port_vnic_type',
+               choices=[None, 'normal', 'direct', 'macvtap'],
+               help="vnic_type to use when Launching instances"
+                    " with pre-configured ports."
+                    " Supported ports are:"
+                    " ['normal','direct','macvtap']"),
 ]
 
 network_feature_group = cfg.OptGroup(name='network-feature-enabled',
@@ -617,7 +609,7 @@ ObjectStoreGroup = [
                         'publicURL', 'adminURL', 'internalURL'],
                help="The endpoint type to use for the object-store service."),
     cfg.IntOpt('container_sync_timeout',
-               default=120,
+               default=600,
                help="Number of seconds to time on waiting for a container "
                     "to container synchronization complete."),
     cfg.IntOpt('container_sync_interval',
@@ -631,6 +623,17 @@ ObjectStoreGroup = [
     cfg.StrOpt('reseller_admin_role',
                default='ResellerAdmin',
                help="User role that has reseller admin"),
+    cfg.StrOpt('realm_name',
+               default='realm1',
+               help="Name of sync realm. A sync realm is a set of clusters "
+                    "that have agreed to allow container syncing with each "
+                    "other. Set the same realm name as Swift's "
+                    "container-sync-realms.conf"),
+    cfg.StrOpt('cluster_name',
+               default='name1',
+               help="One name of cluster which is set in the realm whose name "
+                    "is set in 'realm_name' item in this file. Set the "
+                    "same cluster name as Swift's container-sync-realms.conf"),
 ]
 
 object_storage_feature_group = cfg.OptGroup(
@@ -697,9 +700,6 @@ OrchestrationGroup = [
                default='m1.micro',
                help="Instance type for tests. Needs to be big enough for a "
                     "full OS plus the test workload"),
-    cfg.StrOpt('image_ref',
-               help="Name of heat-cfntools enabled image to use when "
-                    "launching test instances."),
     cfg.StrOpt('keypair_name',
                help="Name of existing keypair to launch servers with."),
     cfg.IntOpt('max_template_size',
@@ -756,6 +756,17 @@ DataProcessingGroup = [
                         'publicURL', 'adminURL', 'internalURL'],
                help="The endpoint type to use for the data processing "
                     "service."),
+]
+
+
+data_processing_feature_group = cfg.OptGroup(
+    name="data_processing-feature-enabled",
+    title="Enabled Data Processing features")
+
+DataProcessingFeaturesGroup = [
+    cfg.ListOpt('plugins',
+                default=["vanilla", "hdp"],
+                help="List of enabled data processing plugins")
 ]
 
 
@@ -876,7 +887,14 @@ ScenarioGroup = [
         'large_ops_number',
         default=0,
         help="specifies how many resources to request at once. Used "
-        "for large operations testing.")
+        "for large operations testing."),
+    # TODO(yfried): add support for dhcpcd
+    cfg.StrOpt('dhcp_client',
+               default='udhcpc',
+               choices=["udhcpc", "dhclient"],
+               help='DHCP client used by images to renew DCHP lease. '
+                    'If left empty, update operation will be skipped. '
+                    'Supported clients: "udhcpc", "dhclient"')
 ]
 
 
@@ -1059,8 +1077,8 @@ _opts = [
     (telemetry_group, TelemetryGroup),
     (dashboard_group, DashboardGroup),
     (data_processing_group, DataProcessingGroup),
+    (data_processing_feature_group, DataProcessingFeaturesGroup),
     (boto_group, BotoGroup),
-    (compute_admin_group, ComputeAdminGroup),
     (stress_group, StressGroup),
     (scenario_group, ScenarioGroup),
     (service_available_group, ServiceAvailableGroup),
@@ -1083,16 +1101,7 @@ def list_opts():
     The purpose of this is to allow tools like the Oslo sample config file
     generator to discover the options exposed to users.
     """
-    optlist = [(g.name, o) for g, o in _opts]
-
-    # NOTE(jgrimm): Can be removed once oslo-incubator/oslo changes happen.
-    optlist.append((None, lockutils.util_opts))
-    optlist.append((None, logging.common_cli_opts))
-    optlist.append((None, logging.logging_cli_opts))
-    optlist.append((None, logging.generic_log_opts))
-    optlist.append((None, logging.log_opts))
-
-    return optlist
+    return [(g.name, o) for g, o in _opts]
 
 
 # this should never be called outside of this class
@@ -1130,8 +1139,9 @@ class TempestConfigPrivate(object):
         self.telemetry = cfg.CONF.telemetry
         self.dashboard = cfg.CONF.dashboard
         self.data_processing = cfg.CONF.data_processing
+        self.data_processing_feature_enabled = cfg.CONF[
+            'data_processing-feature-enabled']
         self.boto = cfg.CONF.boto
-        self.compute_admin = cfg.CONF['compute-admin']
         self.stress = cfg.CONF.stress
         self.scenario = cfg.CONF.scenario
         self.service_available = cfg.CONF.service_available
@@ -1140,17 +1150,11 @@ class TempestConfigPrivate(object):
         self.input_scenario = cfg.CONF['input-scenario']
         self.cli = cfg.CONF.cli
         self.negative = cfg.CONF.negative
-        if not self.compute_admin.username:
-            self.compute_admin.username = self.identity.admin_username
-            self.compute_admin.password = self.identity.admin_password
-            self.compute_admin.tenant_name = self.identity.admin_tenant_name
         cfg.CONF.set_default('domain_name', self.identity.admin_domain_name,
                              group='identity')
         cfg.CONF.set_default('alt_domain_name',
                              self.identity.admin_domain_name,
                              group='identity')
-        cfg.CONF.set_default('domain_name', self.identity.admin_domain_name,
-                             group='compute-admin')
 
     def __init__(self, parse_conf=True, config_path=None):
         """Initialize a configuration from a conf directory and conf file."""
@@ -1176,11 +1180,12 @@ class TempestConfigPrivate(object):
         # to remove an issue with the config file up to date checker.
         if parse_conf:
             config_files.append(path)
+        logging.register_options(cfg.CONF)
         if os.path.isfile(path):
             cfg.CONF([], project='tempest', default_config_files=config_files)
         else:
             cfg.CONF([], project='tempest')
-        logging.setup('tempest')
+        logging.setup(cfg.CONF, 'tempest')
         LOG = logging.getLogger('tempest')
         LOG.info("Using tempest config file %s" % path)
         register_opts()
@@ -1194,16 +1199,14 @@ class TempestConfigProxy(object):
     _path = None
 
     _extra_log_defaults = [
-        'keystoneclient.session=INFO',
-        'paramiko.transport=INFO',
-        'requests.packages.urllib3.connectionpool=WARN'
+        ('paramiko.transport', std_logging.INFO),
+        ('requests.packages.urllib3.connectionpool', std_logging.WARN),
     ]
 
     def _fix_log_levels(self):
         """Tweak the oslo log defaults."""
-        for opt in logging.log_opts:
-            if opt.dest == 'default_log_levels':
-                opt.default.extend(self._extra_log_defaults)
+        for name, level in self._extra_log_defaults:
+            std_logging.getLogger(name).setLevel(level)
 
     def __getattr__(self, attr):
         if not self._config:

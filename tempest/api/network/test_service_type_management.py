@@ -10,12 +10,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from tempest_lib import decorators
+
 from tempest.api.network import base
 from tempest import test
 
 
 class ServiceTypeManagementTestJSON(base.BaseNetworkTest):
-    _interface = 'json'
 
     @classmethod
     def resource_setup(cls):
@@ -24,8 +25,9 @@ class ServiceTypeManagementTestJSON(base.BaseNetworkTest):
             msg = "Neutron Service Type Management not enabled."
             raise cls.skipException(msg)
 
-    @test.skip_because(bug="1400370")
+    @decorators.skip_because(bug="1400370")
     @test.attr(type='smoke')
+    @test.idempotent_id('2cbbeea9-f010-40f6-8df5-4eaa0c918ea6')
     def test_service_provider_list(self):
-        _, body = self.client.list_service_providers()
+        body = self.client.list_service_providers()
         self.assertIsInstance(body['service_providers'], list)

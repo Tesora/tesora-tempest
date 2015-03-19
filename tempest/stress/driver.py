@@ -17,16 +17,16 @@ import os
 import signal
 import time
 
+from oslo_log import log as logging
+from oslo_utils import importutils
 from six import moves
+from tempest_lib.common.utils import data_utils
 
-from tempest import auth
 from tempest import clients
+from tempest.common import cred_provider
 from tempest.common import ssh
-from tempest.common.utils import data_utils
 from tempest import config
 from tempest import exceptions
-from tempest.openstack.common import importutils
-from tempest.openstack.common import log as logging
 from tempest.stress import cleanup
 
 CONF = config.CONF
@@ -143,14 +143,14 @@ def stress_openstack(tests, duration, max_runs=None, stop_on_error=False):
                 tenant_name = data_utils.rand_name("stress_tenant")
                 password = "pass"
                 identity_client = admin_manager.identity_client
-                _, tenant = identity_client.create_tenant(name=tenant_name)
+                tenant = identity_client.create_tenant(name=tenant_name)
                 identity_client.create_user(username,
                                             password,
                                             tenant['id'],
                                             "email")
-                creds = auth.get_credentials(username=username,
-                                             password=password,
-                                             tenant_name=tenant_name)
+                creds = cred_provider.get_credentials(username=username,
+                                                      password=password,
+                                                      tenant_name=tenant_name)
                 manager = clients.Manager(credentials=creds)
 
             test_obj = importutils.import_class(test['action'])

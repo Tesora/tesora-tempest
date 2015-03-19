@@ -12,7 +12,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
+
 from tempest.api_schema.response.compute import parameter_types
+
+image_links = copy.deepcopy(parameter_types.links)
+image_links['items']['properties'].update({'type': {'type': 'string'}})
 
 common_image_schema = {
     'type': 'object',
@@ -20,7 +25,7 @@ common_image_schema = {
         'id': {'type': 'string'},
         'status': {'type': 'string'},
         'updated': {'type': 'string'},
-        'links': parameter_types.links,
+        'links': image_links,
         'name': {'type': 'string'},
         'created': {'type': 'string'},
         'minDisk': {'type': 'integer'},
@@ -35,11 +40,12 @@ common_image_schema = {
             },
             'required': ['id', 'links']
         },
-        'OS-EXT-IMG-SIZE:size': {'type': 'integer'}
+        'OS-EXT-IMG-SIZE:size': {'type': 'integer'},
+        'OS-DCF:diskConfig': {'type': 'string'}
     },
     # 'server' attributes only comes in response body if image is
-    # associated with any server. 'OS-EXT-IMG-SIZE:size' is API
-    # extension, So those are not defined as 'required'.
+    # associated with any server. 'OS-EXT-IMG-SIZE:size' & 'OS-DCF:diskConfig'
+    # are API extension,  So those are not defined as 'required'.
     'required': ['id', 'status', 'updated', 'links', 'name',
                  'created', 'minDisk', 'minRam', 'progress',
                  'metadata']
@@ -67,13 +73,16 @@ list_images = {
                     'type': 'object',
                     'properties': {
                         'id': {'type': 'string'},
-                        'links': parameter_types.links,
+                        'links': image_links,
                         'name': {'type': 'string'}
                     },
                     'required': ['id', 'links', 'name']
                 }
-            }
+            },
+            'images_links': parameter_types.links
         },
+        # NOTE(gmann): images_links attribute is not necessary to be
+        # present always So it is not 'required'.
         'required': ['images']
     }
 }
@@ -82,15 +91,16 @@ create_image = {
     'status_code': [202],
     'response_header': {
         'type': 'object',
-        'properties': {
-            'location': {
-                'type': 'string',
-                'format': 'uri'
-            }
-        },
-        'required': ['location']
+        'properties': parameter_types.response_header
     }
 }
+create_image['response_header']['properties'].update(
+    {'location': {
+        'type': 'string',
+        'format': 'uri'}
+     }
+)
+create_image['response_header']['required'] = ['location']
 
 delete = {
     'status_code': [204]
@@ -126,8 +136,11 @@ list_images_details = {
             'images': {
                 'type': 'array',
                 'items': common_image_schema
-            }
+            },
+            'images_links': parameter_types.links
         },
+        # NOTE(gmann): images_links attribute is not necessary to be
+        # present always So it is not 'required'.
         'required': ['images']
     }
 }

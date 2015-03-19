@@ -12,9 +12,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import functools
 import netaddr
+
+from oslo_log import log as logging
+
 from tempest import config
-from tempest.openstack.common import log as logging
 from tempest.scenario import manager
 from tempest import test
 
@@ -33,24 +36,25 @@ class TestGettingAddress(manager.NetworkScenarioTest):
     """
 
     @classmethod
-    def resource_setup(cls):
-        # Create no network resources for these tests.
-        cls.set_network_resources()
-        super(TestGettingAddress, cls).resource_setup()
-
-    @classmethod
-    def check_preconditions(cls):
+    def skip_checks(cls):
+        super(TestGettingAddress, cls).skip_checks()
         if not (CONF.network_feature_enabled.ipv6
                 and CONF.network_feature_enabled.ipv6_subnet_attributes):
-            cls.enabled = False
             raise cls.skipException('IPv6 or its attributes not supported')
         if not (CONF.network.tenant_networks_reachable
                 or CONF.network.public_network_id):
             msg = ('Either tenant_networks_reachable must be "true", or '
                    'public_network_id must be defined.')
-            cls.enabled = False
             raise cls.skipException(msg)
-        super(TestGettingAddress, cls).check_preconditions()
+        if CONF.baremetal.driver_enabled:
+            msg = ('Baremetal does not currently support network isolation')
+            raise cls.skipException(msg)
+
+    @classmethod
+    def setup_credentials(cls):
+        # Create no network resources for these tests.
+        cls.set_network_resources()
+        super(TestGettingAddress, cls).setup_credentials()
 
     def setUp(self):
         super(TestGettingAddress, self).setUp()
@@ -58,7 +62,7 @@ class TestGettingAddress(manager.NetworkScenarioTest):
         self.sec_grp = self._create_security_group(tenant_id=self.tenant_id)
         self.srv_kwargs = {
             'key_name': self.keypair['name'],
-            'security_groups': [self.sec_grp]}
+            'security_groups': [{'name': self.sec_grp['name']}]}
 
     def prepare_network(self, address6_mode):
         """Creates network with
@@ -66,15 +70,15 @@ class TestGettingAddress(manager.NetworkScenarioTest):
          one IPv4 subnet
          Creates router with ports on both subnets
         """
-        net = self._create_network(tenant_id=self.tenant_id)
-        sub4 = self._create_subnet(network=net,
+        self.network = self._create_network(tenant_id=self.tenant_id)
+        sub4 = self._create_subnet(network=self.network,
                                    namestart='sub4',
                                    ip_version=4,)
         # since https://bugs.launchpad.net/neutron/+bug/1394112 we need
         # to specify gateway_ip manually
         net_range = netaddr.IPNetwork(CONF.network.tenant_network_v6_cidr)
         gateway_ip = (netaddr.IPAddress(net_range) + 1).format()
-        sub6 = self._create_subnet(network=net,
+        sub6 = self._create_subnet(network=self.network,
                                    namestart='sub6',
                                    ip_version=6,
                                    gateway_ip=gateway_ip,
@@ -99,7 +103,10 @@ class TestGettingAddress(manager.NetworkScenarioTest):
     def prepare_server(self):
         username = CONF.compute.image_ssh_user
 
-        srv = self.create_server(create_kwargs=self.srv_kwargs)
+        create_kwargs = self.srv_kwargs
+        create_kwargs['networks'] = [{'uuid': self.network.id}]
+
+        srv = self.create_server(create_kwargs=create_kwargs)
         fip = self.create_floating_ip(thing=srv)
         self.define_server_ips(srv=srv)
         ssh = self.get_remote_client(
@@ -113,14 +120,28 @@ class TestGettingAddress(manager.NetworkScenarioTest):
         ssh1, srv1 = self.prepare_server()
         ssh2, srv2 = self.prepare_server()
 
+        def guest_has_address(ssh, addr):
+            return addr in ssh.get_ip_list()
+
+        srv1_v6_addr_assigned = functools.partial(
+            guest_has_address, ssh1, srv1['accessIPv6'])
+        srv2_v6_addr_assigned = functools.partial(
+            guest_has_address, ssh2, srv2['accessIPv6'])
+
         result = ssh1.get_ip_list()
         self.assertIn(srv1['accessIPv4'], result)
         # v6 should be configured since the image supports it
-        self.assertIn(srv1['accessIPv6'], result)
+        # It can take time for ipv6 automatic address to get assigned
+        self.assertTrue(
+            test.call_until_true(srv1_v6_addr_assigned,
+                                 CONF.compute.ping_timeout, 1))
         result = ssh2.get_ip_list()
         self.assertIn(srv2['accessIPv4'], result)
         # v6 should be configured since the image supports it
-        self.assertIn(srv2['accessIPv6'], result)
+        # It can take time for ipv6 automatic address to get assigned
+        self.assertTrue(
+            test.call_until_true(srv2_v6_addr_assigned,
+                                 CONF.compute.ping_timeout, 1))
         result = ssh1.ping_host(srv2['accessIPv4'])
         self.assertIn('0% packet loss', result)
         result = ssh2.ping_host(srv1['accessIPv4'])
@@ -137,10 +158,12 @@ class TestGettingAddress(manager.NetworkScenarioTest):
         else:
             LOG.warning('Ping6 is not available, skipping')
 
+    @test.idempotent_id('2c92df61-29f0-4eaa-bee3-7c65bef62a43')
     @test.services('compute', 'network')
     def test_slaac_from_os(self):
         self._prepare_and_test(address6_mode='slaac')
 
+    @test.idempotent_id('d7e1f858-187c-45a6-89c9-bdafde619a9f')
     @test.services('compute', 'network')
     def test_dhcp6_stateless_from_os(self):
         self._prepare_and_test(address6_mode='dhcpv6-stateless')

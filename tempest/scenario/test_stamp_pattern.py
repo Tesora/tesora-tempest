@@ -15,13 +15,16 @@
 
 import time
 
+from oslo_log import log as logging
+from tempest_lib.common.utils import data_utils
+from tempest_lib import decorators
+from tempest_lib import exceptions as lib_exc
 import testtools
 
-from tempest.common.utils import data_utils
 from tempest import config
 from tempest import exceptions
-from tempest.openstack.common import log as logging
 from tempest.scenario import manager
+from tempest import test
 import tempest.test
 
 CONF = config.CONF
@@ -51,10 +54,10 @@ class TestStampPattern(manager.ScenarioTest):
     """
 
     @classmethod
-    def resource_setup(cls):
+    def skip_checks(cls):
+        super(TestStampPattern, cls).skip_checks()
         if not CONF.volume_feature_enabled.snapshot:
             raise cls.skipException("Cinder volume snapshots are disabled")
-        super(TestStampPattern, cls).resource_setup()
 
     def _wait_for_volume_snapshot_status(self, volume_snapshot, status):
         self.snapshots_client.wait_for_snapshot_status(volume_snapshot['id'],
@@ -84,7 +87,7 @@ class TestStampPattern(manager.ScenarioTest):
             try:
                 while self.snapshots_client.get_snapshot(snapshot['id']):
                     time.sleep(1)
-            except exceptions.NotFound:
+            except lib_exc.NotFound:
                 pass
         self.addCleanup(cleaner)
         self._wait_for_volume_status(volume, 'available')
@@ -101,7 +104,7 @@ class TestStampPattern(manager.ScenarioTest):
 
     def _attach_volume(self, server, volume):
         # TODO(andreaf) we should use device from config instead if vdb
-        _, attached_volume = self.servers_client.attach_volume(
+        attached_volume = self.servers_client.attach_volume(
             server['id'], volume['id'], device='/dev/vdb')
         self.assertEqual(volume['id'], attached_volume['id'])
         self._wait_for_volume_status(attached_volume, 'in-use')
@@ -137,7 +140,8 @@ class TestStampPattern(manager.ScenarioTest):
         got_timestamp = ssh_client.exec_command('sudo cat /mnt/timestamp')
         self.assertEqual(self.timestamp, got_timestamp)
 
-    @tempest.test.skip_because(bug="1205344")
+    @decorators.skip_because(bug="1205344")
+    @test.idempotent_id('10fd234a-515c-41e5-b092-8323060598c5')
     @testtools.skipUnless(CONF.compute_feature_enabled.snapshot,
                           'Snapshotting is not available.')
     @tempest.test.services('compute', 'network', 'volume', 'image')

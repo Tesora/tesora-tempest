@@ -13,14 +13,14 @@
 #    under the License.
 
 import netaddr
+from oslo_log import log as logging
+from tempest_lib.common.utils import data_utils
+from tempest_lib import exceptions as lib_exc
 
-from tempest import auth
 from tempest import clients
 from tempest.common import cred_provider
-from tempest.common.utils import data_utils
 from tempest import config
 from tempest import exceptions
-from tempest.openstack.common import log as logging
 
 CONF = config.CONF
 LOG = logging.getLogger(__name__)
@@ -28,15 +28,12 @@ LOG = logging.getLogger(__name__)
 
 class IsolatedCreds(cred_provider.CredentialProvider):
 
-    def __init__(self, name, interface='json', password='pass',
-                 network_resources=None):
-        super(IsolatedCreds, self).__init__(name, interface, password,
-                                            network_resources)
+    def __init__(self, name, password='pass', network_resources=None):
+        super(IsolatedCreds, self).__init__(name, password, network_resources)
         self.network_resources = network_resources
         self.isolated_creds = {}
         self.isolated_net_resources = {}
         self.ports = []
-        self.interface = interface
         self.password = password
         self.identity_admin_client, self.network_admin_client = (
             self._get_admin_clients())
@@ -48,30 +45,30 @@ class IsolatedCreds(cred_provider.CredentialProvider):
             identity
             network
         """
-        os = clients.AdminManager(interface=self.interface)
+        os = clients.AdminManager()
         return os.identity_client, os.network_client
 
     def _create_tenant(self, name, description):
-        _, tenant = self.identity_admin_client.create_tenant(
+        tenant = self.identity_admin_client.create_tenant(
             name=name, description=description)
         return tenant
 
     def _get_tenant_by_name(self, name):
-        _, tenant = self.identity_admin_client.get_tenant_by_name(name)
+        tenant = self.identity_admin_client.get_tenant_by_name(name)
         return tenant
 
     def _create_user(self, username, password, tenant, email):
-        _, user = self.identity_admin_client.create_user(
+        user = self.identity_admin_client.create_user(
             username, password, tenant['id'], email)
         return user
 
     def _get_user(self, tenant, username):
-        _, user = self.identity_admin_client.get_user_by_username(
+        user = self.identity_admin_client.get_user_by_username(
             tenant['id'], username)
         return user
 
     def _list_roles(self):
-        _, roles = self.identity_admin_client.list_roles()
+        roles = self.identity_admin_client.list_roles()
         return roles
 
     def _assign_user_role(self, tenant, user, role_name):
@@ -81,9 +78,16 @@ class IsolatedCreds(cred_provider.CredentialProvider):
             role = next(r for r in roles if r['name'] == role_name)
         except StopIteration:
             msg = 'No "%s" role found' % role_name
-            raise exceptions.NotFound(msg)
-        self.identity_admin_client.assign_user_role(tenant['id'], user['id'],
-                                                    role['id'])
+            raise lib_exc.NotFound(msg)
+        try:
+            self.identity_admin_client.assign_user_role(tenant['id'],
+                                                        user['id'],
+                                                        role['id'])
+        except lib_exc.Conflict:
+            LOG.warning('Trying to add %s for user %s in tenant %s but they '
+                        ' were already granted that role' % (role_name,
+                                                             user['name'],
+                                                             tenant['name']))
 
     def _delete_user(self, user):
         self.identity_admin_client.delete_user(user)
@@ -93,7 +97,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
             self._cleanup_default_secgroup(tenant)
         self.identity_admin_client.delete_tenant(tenant)
 
-    def _create_creds(self, suffix="", admin=False):
+    def _create_creds(self, suffix="", admin=False, roles=None):
         """Create random credentials under the following schema.
 
         If the name contains a '.' is the full class path of something, and
@@ -117,17 +121,19 @@ class IsolatedCreds(cred_provider.CredentialProvider):
         email = data_utils.rand_name(root) + suffix + "@example.com"
         user = self._create_user(username, self.password,
                                  tenant, email)
-        if CONF.service_available.swift:
-            # NOTE(andrey-mp): user needs this role to create containers
-            # in swift
-            swift_operator_role = CONF.object_storage.operator_role
-            self._assign_user_role(tenant, user, swift_operator_role)
         if admin:
             self._assign_user_role(tenant, user, CONF.identity.admin_role)
+        # Add roles specified in config file
+        for conf_role in CONF.auth.tempest_roles:
+            self._assign_user_role(tenant, user, conf_role)
+        # Add roles requested by caller
+        if roles:
+            for role in roles:
+                self._assign_user_role(tenant, user, role)
         return self._get_credentials(user, tenant)
 
     def _get_credentials(self, user, tenant):
-        return auth.get_credentials(
+        return cred_provider.get_credentials(
             username=user['name'], user_id=user['id'],
             tenant_name=tenant['name'], tenant_id=tenant['id'],
             password=self.password)
@@ -174,7 +180,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
         return network, subnet, router
 
     def _create_network(self, name, tenant_id):
-        _, resp_body = self.network_admin_client.create_network(
+        resp_body = self.network_admin_client.create_network(
             name=name, tenant_id=tenant_id)
         return resp_body['network']
 
@@ -184,7 +190,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
         for subnet_cidr in base_cidr.subnet(mask_bits):
             try:
                 if self.network_resources:
-                    _, resp_body = self.network_admin_client.\
+                    resp_body = self.network_admin_client.\
                         create_subnet(
                             network_id=network_id, cidr=str(subnet_cidr),
                             name=subnet_name,
@@ -192,14 +198,14 @@ class IsolatedCreds(cred_provider.CredentialProvider):
                             enable_dhcp=self.network_resources['dhcp'],
                             ip_version=4)
                 else:
-                    _, resp_body = self.network_admin_client.\
+                    resp_body = self.network_admin_client.\
                         create_subnet(network_id=network_id,
                                       cidr=str(subnet_cidr),
                                       name=subnet_name,
                                       tenant_id=tenant_id,
                                       ip_version=4)
                 break
-            except exceptions.BadRequest as e:
+            except lib_exc.BadRequest as e:
                 if 'overlaps with another subnet' not in str(e):
                     raise
         else:
@@ -210,7 +216,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
     def _create_router(self, router_name, tenant_id):
         external_net_id = dict(
             network_id=CONF.network.public_network_id)
-        _, resp_body = self.network_admin_client.create_router(
+        resp_body = self.network_admin_client.create_router(
             router_name,
             external_gateway_info=external_net_id,
             tenant_id=tenant_id)
@@ -248,12 +254,15 @@ class IsolatedCreds(cred_provider.CredentialProvider):
         return self.isolated_net_resources.get('alt')[2]
 
     def get_credentials(self, credential_type):
-        if self.isolated_creds.get(credential_type):
-            credentials = self.isolated_creds[credential_type]
+        if self.isolated_creds.get(str(credential_type)):
+            credentials = self.isolated_creds[str(credential_type)]
         else:
-            is_admin = (credential_type == 'admin')
-            credentials = self._create_creds(admin=is_admin)
-            self.isolated_creds[credential_type] = credentials
+            if credential_type in ['primary', 'alt', 'admin']:
+                is_admin = (credential_type == 'admin')
+                credentials = self._create_creds(admin=is_admin)
+            else:
+                credentials = self._create_creds(roles=credential_type)
+            self.isolated_creds[str(credential_type)] = credentials
             # Maintained until tests are ported
             LOG.info("Acquired isolated creds:\n credentials: %s"
                      % credentials)
@@ -261,7 +270,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
                 not CONF.baremetal.driver_enabled):
                 network, subnet, router = self._create_network_resources(
                     credentials.tenant_id)
-                self.isolated_net_resources[credential_type] = (
+                self.isolated_net_resources[str(credential_type)] = (
                     network, subnet, router,)
                 LOG.info("Created isolated network resources for : \n"
                          + " credentials: %s" % credentials)
@@ -276,11 +285,31 @@ class IsolatedCreds(cred_provider.CredentialProvider):
     def get_alt_creds(self):
         return self.get_credentials('alt')
 
+    def get_creds_by_roles(self, roles, force_new=False):
+        roles = list(set(roles))
+        # The roles list as a str will become the index as the dict key for
+        # the created credentials set in the isolated_creds dict.
+        exist_creds = self.isolated_creds.get(str(roles))
+        # If force_new flag is True 2 cred sets with the same roles are needed
+        # handle this by creating a separate index for old one to store it
+        # separately for cleanup
+        if exist_creds and force_new:
+            new_index = str(roles) + '-' + str(len(self.isolated_creds))
+            self.isolated_creds[new_index] = exist_creds
+            del self.isolated_creds[str(roles)]
+            # Handle isolated neutron resouces if they exist too
+            if CONF.service_available.neutron:
+                exist_net = self.isolated_net_resources.get(str(roles))
+                if exist_net:
+                    self.isolated_net_resources[new_index] = exist_net
+                    del self.isolated_net_resources[str(roles)]
+        return self.get_credentials(roles)
+
     def _clear_isolated_router(self, router_id, router_name):
         net_client = self.network_admin_client
         try:
             net_client.delete_router(router_id)
-        except exceptions.NotFound:
+        except lib_exc.NotFound:
             LOG.warn('router with name: %s not found for delete' %
                      router_name)
 
@@ -288,7 +317,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
         net_client = self.network_admin_client
         try:
             net_client.delete_subnet(subnet_id)
-        except exceptions.NotFound:
+        except lib_exc.NotFound:
             LOG.warn('subnet with name: %s not found for delete' %
                      subnet_name)
 
@@ -296,19 +325,19 @@ class IsolatedCreds(cred_provider.CredentialProvider):
         net_client = self.network_admin_client
         try:
             net_client.delete_network(network_id)
-        except exceptions.NotFound:
+        except lib_exc.NotFound:
             LOG.warn('network with name: %s not found for delete' %
                      network_name)
 
     def _cleanup_default_secgroup(self, tenant):
         net_client = self.network_admin_client
-        _, resp_body = net_client.list_security_groups(tenant_id=tenant,
-                                                       name="default")
+        resp_body = net_client.list_security_groups(tenant_id=tenant,
+                                                    name="default")
         secgroups_to_delete = resp_body['security_groups']
         for secgroup in secgroups_to_delete:
             try:
                 net_client.delete_security_group(secgroup['id'])
-            except exceptions.NotFound:
+            except lib_exc.NotFound:
                 LOG.warn('Security group %s, id %s not found for clean-up' %
                          (secgroup['name'], secgroup['id']))
 
@@ -324,7 +353,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
                 try:
                     net_client.remove_router_interface_with_subnet_id(
                         router['id'], subnet['id'])
-                except exceptions.NotFound:
+                except lib_exc.NotFound:
                     LOG.warn('router with name: %s not found for delete' %
                              router['name'])
                 self._clear_isolated_router(router['id'], router['name'])
@@ -334,6 +363,7 @@ class IsolatedCreds(cred_provider.CredentialProvider):
             if (not self.network_resources or
                 self.network_resources.get('network')):
                 self._clear_isolated_network(network['id'], network['name'])
+        self.isolated_net_resources = {}
 
     def clear_isolated_creds(self):
         if not self.isolated_creds:
@@ -342,17 +372,21 @@ class IsolatedCreds(cred_provider.CredentialProvider):
         for creds in self.isolated_creds.itervalues():
             try:
                 self._delete_user(creds.user_id)
-            except exceptions.NotFound:
+            except lib_exc.NotFound:
                 LOG.warn("user with name: %s not found for delete" %
                          creds.username)
             try:
                 self._delete_tenant(creds.tenant_id)
-            except exceptions.NotFound:
+            except lib_exc.NotFound:
                 LOG.warn("tenant with name: %s not found for delete" %
                          creds.tenant_name)
+        self.isolated_creds = {}
 
     def is_multi_user(self):
         return True
 
     def is_multi_tenant(self):
+        return True
+
+    def is_role_available(self, role):
         return True

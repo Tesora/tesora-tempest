@@ -13,16 +13,17 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from tempest_lib.common.utils import data_utils
+from tempest_lib import exceptions as lib_exc
+
 from tempest.api.identity import base
-from tempest.common.utils import data_utils
-from tempest import exceptions
 from tempest import test
 
 
 class TokensV3TestJSON(base.BaseIdentityV3AdminTest):
-    _interface = 'json'
 
     @test.attr(type='smoke')
+    @test.idempotent_id('0f9f5a5f-d5cd-4a86-8a5b-c5ded151f212')
     def test_tokens(self):
         # Valid user's token is authenticated
         # Create a User
@@ -30,24 +31,26 @@ class TokensV3TestJSON(base.BaseIdentityV3AdminTest):
         u_desc = '%s-description' % u_name
         u_email = '%s@testmail.tm' % u_name
         u_password = data_utils.rand_name('pass-')
-        _, user = self.client.create_user(
+        user = self.client.create_user(
             u_name, description=u_desc, password=u_password,
             email=u_email)
         self.addCleanup(self.client.delete_user, user['id'])
         # Perform Authentication
-        resp, _ = self.token.auth(user['id'], u_password)
+        resp = self.token.auth(user_id=user['id'],
+                               password=u_password).response
         subject_token = resp['x-subject-token']
         # Perform GET Token
-        _, token_details = self.client.get_token(subject_token)
+        token_details = self.client.get_token(subject_token)
         self.assertEqual(resp['x-subject-token'], subject_token)
         self.assertEqual(token_details['user']['id'], user['id'])
         self.assertEqual(token_details['user']['name'], u_name)
         # Perform Delete Token
         self.client.delete_token(subject_token)
-        self.assertRaises(exceptions.NotFound, self.client.get_token,
+        self.assertRaises(lib_exc.NotFound, self.client.get_token,
                           subject_token)
 
     @test.attr(type='gate')
+    @test.idempotent_id('565fa210-1da1-4563-999b-f7b5b67cf112')
     def test_rescope_token(self):
         """Rescope a token.
 
@@ -60,21 +63,21 @@ class TokensV3TestJSON(base.BaseIdentityV3AdminTest):
         # Create a user.
         user_name = data_utils.rand_name(name='user-')
         user_password = data_utils.rand_name(name='pass-')
-        _, user = self.client.create_user(user_name, password=user_password)
+        user = self.client.create_user(user_name, password=user_password)
         self.addCleanup(self.client.delete_user, user['id'])
 
         # Create a couple projects
         project1_name = data_utils.rand_name(name='project-')
-        _, project1 = self.client.create_project(project1_name)
+        project1 = self.client.create_project(project1_name)
         self.addCleanup(self.client.delete_project, project1['id'])
 
         project2_name = data_utils.rand_name(name='project-')
-        _, project2 = self.client.create_project(project2_name)
+        project2 = self.client.create_project(project2_name)
         self.addCleanup(self.client.delete_project, project2['id'])
 
         # Create a role
         role_name = data_utils.rand_name(name='role-')
-        _, role = self.client.create_role(role_name)
+        role = self.client.create_role(role_name)
         self.addCleanup(self.client.delete_role, role['id'])
 
         # Grant the user the role on both projects.
@@ -85,10 +88,10 @@ class TokensV3TestJSON(base.BaseIdentityV3AdminTest):
                                      role['id'])
 
         # Get an unscoped token.
-        resp, token_auth = self.token.auth(user=user['id'],
-                                           password=user_password)
+        token_auth = self.token.auth(user_id=user['id'],
+                                     password=user_password)
 
-        token_id = resp['x-subject-token']
+        token_id = token_auth.response['x-subject-token']
         orig_expires_at = token_auth['token']['expires_at']
         orig_issued_at = token_auth['token']['issued_at']
         orig_user = token_auth['token']['user']
@@ -107,10 +110,10 @@ class TokensV3TestJSON(base.BaseIdentityV3AdminTest):
         self.assertNotIn('roles', token_auth['token'])
 
         # Use the unscoped token to get a scoped token.
-        resp, token_auth = self.token.auth(token=token_id,
-                                           tenant=project1_name,
-                                           domain='Default')
-        token1_id = resp['x-subject-token']
+        token_auth = self.token.auth(token=token_id,
+                                     project_name=project1_name,
+                                     project_domain_name='Default')
+        token1_id = token_auth.response['x-subject-token']
 
         self.assertEqual(orig_expires_at, token_auth['token']['expires_at'],
                          'Expiration time should match original token')
@@ -137,9 +140,9 @@ class TokensV3TestJSON(base.BaseIdentityV3AdminTest):
         self.client.delete_token(token1_id)
 
         # Now get another scoped token using the unscoped token.
-        _, token_auth = self.token.auth(token=token_id,
-                                        tenant=project2_name,
-                                        domain='Default')
+        token_auth = self.token.auth(token=token_id,
+                                     project_name=project2_name,
+                                     project_domain_name='Default')
 
         self.assertEqual(project2['id'],
                          token_auth['token']['project']['id'])

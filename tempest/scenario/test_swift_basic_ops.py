@@ -13,9 +13,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest.common import http
+from oslo_log import log as logging
+
 from tempest import config
-from tempest.openstack.common import log as logging
 from tempest.scenario import manager
 from tempest import test
 
@@ -39,6 +39,7 @@ class TestSwiftBasicOps(manager.SwiftScenarioTest):
      * change ACL of the container and make sure it works successfully
     """
 
+    @test.idempotent_id('b920faf1-7b8a-4657-b9fe-9c4512bfb381')
     @test.services('object_storage')
     def test_swift_basic_ops(self):
         self.get_swift_stat()
@@ -52,6 +53,7 @@ class TestSwiftBasicOps(manager.SwiftScenarioTest):
                                               not_present_obj=[obj_name])
         self.delete_container(container_name)
 
+    @test.idempotent_id('916c7111-cb1f-44b2-816d-8f760e4ea910')
     @test.services('object_storage')
     def test_swift_acl_anonymous_download(self):
         """This test will cover below steps:
@@ -65,12 +67,9 @@ class TestSwiftBasicOps(manager.SwiftScenarioTest):
         obj_name, _ = self.upload_object_to_container(container_name)
         obj_url = '%s/%s/%s' % (self.object_client.base_url,
                                 container_name, obj_name)
-        dscv = CONF.identity.disable_ssl_certificate_validation
-        ca_certs = CONF.identity.ca_certificates_file
-        http_client = http.ClosingHttp(
-            disable_ssl_certificate_validation=dscv, ca_certs=ca_certs)
-        resp, _ = http_client.request(obj_url, 'GET')
+        resp, _ = self.object_client.raw_request(obj_url, 'GET')
         self.assertEqual(resp.status, 401)
+
         self.change_container_acl(container_name, '.r:*')
-        resp, _ = http_client.request(obj_url, 'GET')
+        resp, _ = self.object_client.raw_request(obj_url, 'GET')
         self.assertEqual(resp.status, 200)
