@@ -422,6 +422,11 @@
 # Does the test environment have the ec2 api running? (boolean value)
 #ec2_api = true
 
+# Does Nova preserve preexisting ports from Neutron when deleting an
+# instance? This should be set to True if testing Kilo+ Nova. (boolean
+# value)
+#preserve_ports = false
+
 
 [dashboard]
 
@@ -872,6 +877,9 @@
 # value)
 # Allowed values: public, admin, internal, publicURL, adminURL, internalURL
 #endpoint_type = publicURL
+
+# Role required for users to be able to manage stacks (string value)
+#stack_owner_role = heat_stack_owner
 
 # Time in seconds between build status checks. (integer value)
 #build_interval = 1
