@@ -351,7 +351,13 @@ ComputeFeaturesGroup = [
                      'images of running instances?'),
     cfg.BoolOpt('ec2_api',
                 default=True,
-                help='Does the test environment have the ec2 api running?')
+                help='Does the test environment have the ec2 api running?'),
+    # TODO(mriedem): Remove preserve_ports once juno-eol happens.
+    cfg.BoolOpt('preserve_ports',
+                default=False,
+                help='Does Nova preserve preexisting ports from Neutron '
+                     'when deleting an instance? This should be set to True '
+                     'if testing Kilo+ Nova.')
 ]
 
 
@@ -690,6 +696,8 @@ OrchestrationGroup = [
                choices=['public', 'admin', 'internal',
                         'publicURL', 'adminURL', 'internalURL'],
                help="The endpoint type to use for the orchestration service."),
+    cfg.StrOpt('stack_owner_role', default='heat_stack_owner',
+               help='Role required for users to be able to manage stacks'),
     cfg.IntOpt('build_interval',
                default=1,
                help="Time in seconds between build status checks."),
