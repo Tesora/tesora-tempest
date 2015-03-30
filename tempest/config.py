@@ -60,7 +60,13 @@ AuthGroup = [
                      "number of concurrent test processes."),
     cfg.ListOpt('tempest_roles',
                 help="Roles to assign to all users created by tempest",
-                default=[])
+                default=[]),
+    cfg.StrOpt('tenant_isolation_domain_name',
+               default=None,
+               help="Only applicable when identity.auth_version is v3."
+                    "Domain within which isolated credentials are provisioned."
+                    "The default \"None\" means that the domain from the"
+                    "admin user is used instead.")
 ]
 
 identity_group = cfg.OptGroup(name='identity',
@@ -226,9 +232,11 @@ ComputeGroup = [
                help="Timeout in seconds to wait for output from ssh "
                     "channel."),
     cfg.StrOpt('fixed_network_name',
-               default='private',
                help="Name of the fixed network that is visible to all test "
-                    "tenants."),
+                    "tenants. If multiple networks are available for a tenant"
+                    " this is the network which will be used for creating "
+                    "servers if tempest does not create a network or a "
+                    "network is not specified elsewhere"),
     cfg.StrOpt('network_for_ssh',
                default='public',
                help="Network used for SSH connections. Ignored if "
@@ -319,7 +327,8 @@ ComputeFeaturesGroup = [
     cfg.BoolOpt('block_migrate_cinder_iscsi',
                 default=False,
                 help="Does the test environment block migration support "
-                     "cinder iSCSI volumes"),
+                "cinder iSCSI volumes. Note, libvirt doesn't support this, "
+                "see https://bugs.launchpad.net/nova/+bug/1398999"),
     cfg.BoolOpt('vnc_console',
                 default=False,
                 help='Enable VNC console. This configuration value should '
