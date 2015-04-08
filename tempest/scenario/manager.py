@@ -186,7 +186,8 @@ class ScenarioTest(tempest.test.BaseTestCase):
         if create_kwargs is None:
             create_kwargs = {}
         network = self.get_tenant_network()
-        fixed_network.set_networks_kwarg(network, create_kwargs)
+        create_kwargs = fixed_network.set_networks_kwarg(network,
+                                                         create_kwargs)
 
         LOG.debug("Creating a server (name: %s, image: %s, flavor: %s)",
                   name, image, flavor)
@@ -401,7 +402,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         # Compute client
         _images_client = self.images_client
         if name is None:
-            name = data_utils.rand_name('scenario-snapshot-')
+            name = data_utils.rand_name('scenario-snapshot')
         LOG.debug("Creating a snapshot image for server: %s", server['name'])
         image = _images_client.create_image(server['id'], name)
         image_id = image.response['location'].split('images/')[1]
@@ -680,6 +681,8 @@ class NetworkScenarioTest(ScenarioTest):
 
     def _get_network_by_name(self, network_name):
         net = self._list_networks(name=network_name)
+        self.assertNotEqual(len(net), 0,
+                            "Unable to get network by name: %s" % network_name)
         return net_resources.AttributeDict(net[0])
 
     def create_floating_ip(self, thing, external_network_id=None,
@@ -1049,6 +1052,9 @@ class NetworkScenarioTest(ScenarioTest):
             # not (the current baremetal case). Likely can be removed when
             # test account mgmt is reworked:
             # https://blueprints.launchpad.net/tempest/+spec/test-accounts
+            if not CONF.compute.fixed_network_name:
+                m = 'fixed_network_name must be specified in config'
+                raise exceptions.InvalidConfiguration(m)
             network = self._get_network_by_name(
                 CONF.compute.fixed_network_name)
             router = None
@@ -1317,7 +1323,7 @@ class EncryptionScenarioTest(ScenarioTest):
             client = self.admin_volume_types_client
         if not name:
             name = 'generic'
-        randomized_name = data_utils.rand_name('scenario-type-' + name + '-')
+        randomized_name = data_utils.rand_name('scenario-type-' + name)
         LOG.debug("Creating a volume type: %s", randomized_name)
         body = client.create_volume_type(
             randomized_name)
