@@ -590,6 +590,9 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
     @testtools.skipIf(CONF.baremetal.driver_enabled,
                       'admin_state of instance ports cannot be altered '
                       'for baremetal nodes')
+    @testtools.skipUnless(CONF.network_feature_enabled.port_admin_state_change,
+                          "Changing a port's admin state is not supported "
+                          "by the test environment")
     @test.attr(type='smoke')
     @test.services('compute', 'network')
     def test_update_instance_port_admin_state(self):
@@ -653,22 +656,3 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
         self.assertEqual(self.network['id'], port['network_id'])
         self.assertEqual('', port['device_id'])
         self.assertEqual('', port['device_owner'])
-
-    @test.idempotent_id('51641c7d-119a-44cd-aac6-b5b9f86dd808')
-    @test.services('compute', 'network')
-    def test_creation_of_server_attached_to_user_created_port(self):
-        self.security_group = (
-            self._create_security_group(tenant_id=self.tenant_id))
-        network, subnet, router = self.create_networks()
-        kwargs = {
-            'security_groups': [self.security_group['id']],
-        }
-
-        port = self._create_port(network.id, **kwargs)
-        name = data_utils.rand_name('server-smoke')
-        server = self._create_server(name, network, port.id)
-        self._check_tenant_network_connectivity()
-        floating_ip = self.create_floating_ip(server)
-        self.floating_ip_tuple = Floating_IP_tuple(floating_ip, server)
-        self.check_public_network_connectivity(
-            should_connect=True)
