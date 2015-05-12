@@ -45,9 +45,9 @@
 
 # (Optional) Enables or disables syslog rfc5424 format for logging. If
 # enabled, prefixes the MSG part of the syslog message with APP-NAME
-# (RFC5424). The format without the APP-NAME is deprecated in I, and
-# will be removed in J. (boolean value)
-#use_syslog_rfc_format = false
+# (RFC5424). The format without the APP-NAME is deprecated in K, and
+# will be removed in L, along with this option. (boolean value)
+#use_syslog_rfc_format = true
 
 # Syslog facility to receive log lines. (string value)
 #syslog_log_facility = LOG_USER
@@ -199,27 +199,6 @@
 
 # Status Change Test Interval (integer value)
 #build_interval = 1
-
-
-[cli]
-
-#
-# From tempest.config
-#
-
-# enable cli tests (boolean value)
-#enabled = true
-
-# directory where python client binaries are located (string value)
-#cli_dir = /usr/local/bin
-
-# Whether the tempest run location has access to the *-manage
-# commands. In a pure blackbox environment it will not. (boolean
-# value)
-#has_manage = true
-
-# Number of seconds to wait on a CLI timeout (integer value)
-#timeout = 15
 
 
 [compute]
@@ -395,6 +374,11 @@
 # volumes. Note, libvirt doesn't support this, see
 # https://bugs.launchpad.net/nova/+bug/1398999 (boolean value)
 #block_migrate_cinder_iscsi = false
+
+# Does the test system allow live-migration of paused instances? Note,
+# this is more than just the ANDing of paused and live_migrate, but
+# all 3 should be set to True to run those tests (boolean value)
+#live_migrate_paused_instances = false
 
 # Enable VNC console. This configuration value should be same as
 # [nova.vnc]->vnc_enabled in nova.conf (boolean value)
