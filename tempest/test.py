@@ -34,6 +34,7 @@ from tempest import clients
 from tempest.common import credentials
 from tempest.common import fixed_network
 import tempest.common.generator.valid_generator as valid
+import tempest.common.validation_resources as vresources
 from tempest import config
 from tempest import exceptions
 
@@ -52,13 +53,9 @@ def attr(*args, **kwargs):
     def decorator(f):
         if 'type' in kwargs and isinstance(kwargs['type'], str):
             f = testtools.testcase.attr(kwargs['type'])(f)
-            if kwargs['type'] == 'smoke':
-                f = testtools.testcase.attr('gate')(f)
         elif 'type' in kwargs and isinstance(kwargs['type'], list):
             for attr in kwargs['type']:
                 f = testtools.testcase.attr(attr)(f)
-                if attr == 'smoke':
-                    f = testtools.testcase.attr('gate')(f)
         return f
 
     return decorator
@@ -232,6 +229,11 @@ class BaseTestCase(testtools.testcase.WithAttributes,
     setUpClassCalled = False
     _service = None
 
+    # NOTE(andreaf) credentials holds a list of the credentials to be allocated
+    # at class setup time. Credential types can be 'primary', 'alt' or 'admin'
+    credentials = []
+    # Resources required to validate a server using ssh
+    validation_resources = {}
     network_resources = {}
 
     # NOTE(sdague): log_format is defined inline here instead of using the oslo
@@ -317,15 +319,37 @@ class BaseTestCase(testtools.testcase.WithAttributes,
         If one is really needed it may be implemented either in the
         resource_setup or at test level.
         """
-        pass
+        if 'admin' in cls.credentials and not credentials.is_admin_available():
+            msg = "Missing Identity Admin API credentials in configuration."
+            raise cls.skipException(msg)
+        if 'alt' is cls.credentials and not credentials.is_alt_available():
+            msg = "Missing a 2nd set of API credentials in configuration."
+            raise cls.skipException(msg)
 
     @classmethod
     def setup_credentials(cls):
-        """Allocate credentials and the client managers from them."""
-        # TODO(andreaf) There is a fair amount of code that could me moved from
-        # base / test classes in here. Ideally tests should be able to only
-        # specify a list of (additional) credentials the need to use.
-        pass
+        """Allocate credentials and the client managers from them.
+        A test class that requires network resources must override
+        setup_credentials and defined the required resources before super
+        is invoked.
+        """
+        for credentials_type in cls.credentials:
+            # This may raise an exception in case credentials are not available
+            # In that case we want to let the exception through and the test
+            # fail accordingly
+            manager = cls.get_client_manager(
+                credential_type=credentials_type)
+            setattr(cls, 'os_%s' % credentials_type, manager)
+            # Setup some common aliases
+            # TODO(andreaf) The aliases below are a temporary hack
+            # to avoid changing too much code in one patch. They should
+            # be removed eventually
+            if credentials_type == 'primary':
+                cls.os = cls.manager = cls.os_primary
+            if credentials_type == 'admin':
+                cls.os_adm = cls.admin_manager = cls.os_admin
+            if credentials_type == 'alt':
+                cls.alt_manager = cls.os_alt
 
     @classmethod
     def setup_clients(cls):
@@ -339,7 +363,12 @@ class BaseTestCase(testtools.testcase.WithAttributes,
     def resource_setup(cls):
         """Class level resource setup for test cases.
         """
-        pass
+        if hasattr(cls, "os"):
+            cls.validation_resources = vresources.create_validation_resources(
+                cls.os, cls.validation_resources)
+        else:
+            LOG.warn("Client manager not found, validation resources not"
+                     " created")
 
     @classmethod
     def resource_cleanup(cls):
@@ -347,7 +376,14 @@ class BaseTestCase(testtools.testcase.WithAttributes,
         Resource cleanup must be able to handle the case of partially setup
         resources, in case a failure during `resource_setup` should happen.
         """
-        pass
+        if cls.validation_resources:
+            if hasattr(cls, "os"):
+                vresources.clear_validation_resources(cls.os,
+                                                      cls.validation_resources)
+                cls.validation_resources = {}
+            else:
+                LOG.warn("Client manager not found, validation resources not"
+                         " deleted")
 
     def setUp(self):
         super(BaseTestCase, self).setUp()
@@ -379,7 +415,8 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                                                    level=None))
 
     @classmethod
-    def get_client_manager(cls, identity_version=None):
+    def get_client_manager(cls, identity_version=None,
+                           credential_type='primary'):
         """
         Returns an OpenStack client manager
         """
@@ -394,7 +431,12 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                 identity_version=identity_version
             )
 
-        creds = cls.isolated_creds.get_primary_creds()
+        credentials_method = 'get_%s_creds' % credential_type
+        if hasattr(cls.isolated_creds, credentials_method):
+            creds = getattr(cls.isolated_creds, credentials_method)()
+        else:
+            raise exceptions.InvalidCredentials(
+                "Invalid credentials type %s" % credential_type)
         os = clients.Manager(credentials=creds, service=cls._service)
         return os
 
@@ -407,13 +449,41 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             cls.isolated_creds.clear_isolated_creds()
 
     @classmethod
-    def _get_identity_admin_client(cls):
+    def set_validation_resources(cls, keypair=None, floating_ip=None,
+                                 security_group=None,
+                                 security_group_rules=None):
+        """Specify which ssh server validation resources should be created.
+        Each of the argument must be set to either None, True or False, with
+        None - use default from config (security groups and security group
+               rules get created when set to None)
+        False - Do not create the validation resource
+        True - create the validation resource
+
+        @param keypair
+        @param security_group
+        @param security_group_rules
+        @param floating_ip
         """
-        Returns an instance of the Identity Admin API client
-        """
-        os = clients.AdminManager(service=cls._service)
-        admin_client = os.identity_client
-        return admin_client
+        if keypair is None:
+            if CONF.validation.auth_method.lower() == "keypair":
+                keypair = True
+            else:
+                keypair = False
+        if floating_ip is None:
+            if CONF.validation.connect_method.lower() == "floating":
+                floating_ip = True
+            else:
+                floating_ip = False
+        if security_group is None:
+            security_group = True
+        if security_group_rules is None:
+            security_group_rules = True
+        if not cls.validation_resources:
+            cls.validation_resources = {
+                'keypair': keypair,
+                'security_group': security_group,
+                'security_group_rules': security_group_rules,
+                'floating_ip': floating_ip}
 
     @classmethod
     def set_network_resources(cls, network=False, router=False, subnet=False,
@@ -470,7 +540,7 @@ class NegativeAutoTest(BaseTestCase):
     @classmethod
     def setUpClass(cls):
         super(NegativeAutoTest, cls).setUpClass()
-        os = cls.get_client_manager()
+        os = cls.get_client_manager(credential_type='primary')
         cls.client = os.negative_client
 
     @staticmethod
@@ -665,7 +735,7 @@ def SimpleNegativeAutoTest(klass):
     """
     This decorator registers a test function on basis of the class name.
     """
-    @attr(type=['negative', 'gate'])
+    @attr(type=['negative'])
     def generic_test(self):
         if hasattr(self, '_schema'):
             self.execute(self._schema)
