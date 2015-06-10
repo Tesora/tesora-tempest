@@ -96,13 +96,25 @@ class ImageClientV2JSON(service_client.ServiceClient):
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
 
+    def deactivate_image(self, image_id):
+        url = 'v2/images/%s/actions/deactivate' % image_id
+        resp, body = self.post(url, None)
+        self.expected_success(204, resp.status)
+        return service_client.ResponseBody(resp, body)
+
+    def reactivate_image(self, image_id):
+        url = 'v2/images/%s/actions/reactivate' % image_id
+        resp, body = self.post(url, None)
+        self.expected_success(204, resp.status)
+        return service_client.ResponseBody(resp, body)
+
     def delete_image(self, image_id):
         url = 'v2/images/%s' % image_id
         resp, _ = self.delete(url)
         self.expected_success(204, resp.status)
         return service_client.ResponseBody(resp)
 
-    def image_list(self, params=None):
+    def list_images(self, params=None):
         url = 'v2/images'
 
         if params:
@@ -114,7 +126,7 @@ class ImageClientV2JSON(service_client.ServiceClient):
         self._validate_schema(body, type='images')
         return service_client.ResponseBodyList(resp, body['images'])
 
-    def get_image(self, image_id):
+    def show_image(self, image_id):
         url = 'v2/images/%s' % image_id
         resp, body = self.get(url)
         self.expected_success(200, resp.status)
@@ -123,7 +135,7 @@ class ImageClientV2JSON(service_client.ServiceClient):
 
     def is_resource_deleted(self, id):
         try:
-            self.get_image(id)
+            self.show_image(id)
         except lib_exc.NotFound:
             return True
         return False
@@ -159,14 +171,14 @@ class ImageClientV2JSON(service_client.ServiceClient):
         self.expected_success(204, resp.status)
         return service_client.ResponseBody(resp)
 
-    def get_image_membership(self, image_id):
+    def list_image_members(self, image_id):
         url = 'v2/images/%s/members' % image_id
         resp, body = self.get(url)
         self.expected_success(200, resp.status)
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
 
-    def add_member(self, image_id, member_id):
+    def add_image_member(self, image_id, member_id):
         url = 'v2/images/%s/members' % image_id
         data = json.dumps({'member': member_id})
         resp, body = self.post(url, data)
@@ -174,22 +186,21 @@ class ImageClientV2JSON(service_client.ServiceClient):
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
 
-    def update_member_status(self, image_id, member_id, status):
-        """Valid status are: ``pending``, ``accepted``,  ``rejected``."""
+    def update_image_member(self, image_id, member_id, body):
         url = 'v2/images/%s/members/%s' % (image_id, member_id)
-        data = json.dumps({'status': status})
+        data = json.dumps(body)
         resp, body = self.put(url, data)
         self.expected_success(200, resp.status)
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
 
-    def get_member(self, image_id, member_id):
+    def show_image_member(self, image_id, member_id):
         url = 'v2/images/%s/members/%s' % (image_id, member_id)
         resp, body = self.get(url)
         self.expected_success(200, resp.status)
         return service_client.ResponseBody(resp, json.loads(body))
 
-    def remove_member(self, image_id, member_id):
+    def remove_image_member(self, image_id, member_id):
         url = 'v2/images/%s/members/%s' % (image_id, member_id)
         resp, _ = self.delete(url)
         self.expected_success(204, resp.status)

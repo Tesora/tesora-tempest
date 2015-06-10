@@ -201,20 +201,12 @@ class ImageClientJSON(service_client.ServiceClient):
         self.expected_success(200, resp.status)
         return service_client.ResponseBody(resp, body)
 
-    def image_list(self, **kwargs):
+    def list_images(self, detail=False, properties=dict(),
+                    changes_since=None, **kwargs):
         url = 'v1/images'
 
-        if len(kwargs) > 0:
-            url += '?%s' % urllib.urlencode(kwargs)
-
-        resp, body = self.get(url)
-        self.expected_success(200, resp.status)
-        body = json.loads(body)
-        return service_client.ResponseBodyList(resp, body['images'])
-
-    def image_list_detail(self, properties=dict(), changes_since=None,
-                          **kwargs):
-        url = 'v1/images/detail'
+        if detail:
+            url += '/detail'
 
         params = {}
         for key, value in properties.items():
@@ -240,7 +232,7 @@ class ImageClientJSON(service_client.ServiceClient):
         body = self._image_meta_from_headers(resp)
         return service_client.ResponseBody(resp, body)
 
-    def get_image(self, image_id):
+    def show_image(self, image_id):
         url = 'v1/images/%s' % image_id
         resp, body = self.get(url)
         self.expected_success(200, resp.status)
@@ -258,15 +250,16 @@ class ImageClientJSON(service_client.ServiceClient):
         """Returns the primary type of resource this client works with."""
         return 'image_meta'
 
-    def get_image_membership(self, image_id):
+    def list_image_members(self, image_id):
         url = 'v1/images/%s/members' % image_id
         resp, body = self.get(url)
         self.expected_success(200, resp.status)
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
 
-    def get_shared_images(self, member_id):
-        url = 'v1/shared-images/%s' % member_id
+    def list_shared_images(self, tenant_id):
+        """List shared images with the specified tenant"""
+        url = 'v1/shared-images/%s' % tenant_id
         resp, body = self.get(url)
         self.expected_success(200, resp.status)
         body = json.loads(body)

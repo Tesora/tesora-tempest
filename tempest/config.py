@@ -69,7 +69,15 @@ AuthGroup = [
                help="Only applicable when identity.auth_version is v3."
                     "Domain within which isolated credentials are provisioned."
                     "The default \"None\" means that the domain from the"
-                    "admin user is used instead.")
+                    "admin user is used instead."),
+    cfg.BoolOpt('create_isolated_networks',
+                default=True,
+                help="If allow_tenant_isolation is set to True and Neutron is "
+                     "enabled Tempest will try to create a useable network, "
+                     "subnet, and router when needed for each tenant it  "
+                     "creates. However in some neutron configurations, like "
+                     "with VLAN provider networks, this doesn't work. So if "
+                     "set to False the isolated networks will not be created"),
 ]
 
 identity_group = cfg.OptGroup(name='identity',
@@ -142,6 +150,9 @@ IdentityGroup = [
     cfg.StrOpt('admin_domain_name',
                help="Admin domain name for authentication (Keystone V3)."
                     "The same domain applies to user and project"),
+    cfg.StrOpt('default_domain_id',
+               default='default',
+               help="ID of the default domain"),
 ]
 
 identity_feature_group = cfg.OptGroup(name='identity-feature-enabled',
@@ -195,9 +206,6 @@ ComputeGroup = [
                help="Timeout in seconds to wait for an instance to build. "
                     "Other services that do not define build_timeout will "
                     "inherit this value."),
-    cfg.BoolOpt('run_ssh',
-                default=False,
-                help="Should the tests ssh to instances?"),
     cfg.StrOpt('ssh_auth_method',
                default='keypair',
                help="Auth method used for authenticate to the instance. "
@@ -249,7 +257,7 @@ ComputeGroup = [
     cfg.StrOpt('network_for_ssh',
                default='public',
                help="Network used for SSH connections. Ignored if "
-                    "use_floatingip_for_ssh=true or run_ssh=false."),
+                    "use_floatingip_for_ssh=true or run_validation=false."),
     cfg.IntOpt('ip_version_for_ssh',
                default=4,
                help="IP version used for SSH connections."),
@@ -425,6 +433,10 @@ ImageFeaturesGroup = [
     cfg.BoolOpt('api_v1',
                 default=True,
                 help="Is the v1 image API enabled"),
+    cfg.BoolOpt('deactivate_image',
+                default=False,
+                help="Is the deactivate-image feature enabled."
+                     " The feature has been integrated since Kilo."),
 ]
 
 network_group = cfg.OptGroup(name='network',
@@ -558,6 +570,12 @@ validation_group = cfg.OptGroup(name='validation',
                                 title='SSH Validation options')
 
 ValidationGroup = [
+    cfg.BoolOpt('run_validation',
+                default=False,
+                help='Enable ssh on created servers and creation of additional'
+                     ' validation resources to enable remote access',
+                deprecated_opts=[cfg.DeprecatedOpt('run_ssh',
+                                                   group='compute')]),
     cfg.StrOpt('connect_method',
                default='floating',
                choices=['fixed', 'floating'],
@@ -654,6 +672,10 @@ VolumeFeaturesGroup = [
     cfg.BoolOpt('api_v2',
                 default=True,
                 help="Is the v2 volume API enabled"),
+    cfg.BoolOpt('bootable',
+                default=False,
+                help='Update bootable status of a volume '
+                     'Not implemented on icehouse ')
 ]
 
 
@@ -940,6 +962,8 @@ ScenarioGroup = [
     cfg.StrOpt('img_container_format',
                default='bare',
                help='Image container format'),
+    cfg.DictOpt('img_properties', help='Glance image properties. '
+                'Use for custom images which require them'),
     cfg.StrOpt('ami_img_file',
                default='cirros-0.3.1-x86_64-blank.img',
                help='AMI image file name'),
@@ -1094,8 +1118,10 @@ BaremetalGroup = [
                default=60,
                help="Timeout for Ironic power transitions."),
     cfg.IntOpt('unprovision_timeout',
-               default=60,
-               help="Timeout for unprovisioning an Ironic node.")
+               default=300,
+               help="Timeout for unprovisioning an Ironic node. "
+                    "Takes longer since Kilo as Ironic performs an extra "
+                    "step in Node cleaning.")
 ]
 
 negative_group = cfg.OptGroup(name='negative', title="Negative Test Options")

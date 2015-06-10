@@ -17,10 +17,11 @@ import json
 
 from six.moves.urllib import parse as urllib
 
-from tempest.api_schema.response.compute import flavors_access as schema_access
-from tempest.api_schema.response.compute import flavors_extra_specs \
-    as schema_extra_specs
 from tempest.api_schema.response.compute.v2_1 import flavors as schema
+from tempest.api_schema.response.compute.v2_1 import flavors_access \
+    as schema_access
+from tempest.api_schema.response.compute.v2_1 import flavors_extra_specs \
+    as schema_extra_specs
 from tempest.common import service_client
 
 
@@ -46,7 +47,7 @@ class FlavorsClientJSON(service_client.ServiceClient):
         self.validate_response(schema.list_flavors_details, resp, body)
         return service_client.ResponseBodyList(resp, body['flavors'])
 
-    def get_flavor_details(self, flavor_id):
+    def show_flavor(self, flavor_id):
         resp, body = self.get("flavors/%s" % str(flavor_id))
         body = json.loads(body)
         self.validate_response(schema.create_get_flavor_details, resp, body)
@@ -83,7 +84,7 @@ class FlavorsClientJSON(service_client.ServiceClient):
         return service_client.ResponseBody(resp, body)
 
     def is_resource_deleted(self, id):
-        # Did not use get_flavor_details(id) for verification as it gives
+        # Did not use show_flavor(id) for verification as it gives
         # 200 ok even for deleted id. LP #981263
         # we can remove the loop here and use get by ID when bug gets sortedout
         flavors = self.list_flavors_with_detail()
@@ -103,25 +104,26 @@ class FlavorsClientJSON(service_client.ServiceClient):
         resp, body = self.post('flavors/%s/os-extra_specs' % flavor_id,
                                post_body)
         body = json.loads(body)
-        self.validate_response(schema_extra_specs.flavor_extra_specs,
+        self.validate_response(schema_extra_specs.set_get_flavor_extra_specs,
                                resp, body)
         return service_client.ResponseBody(resp, body['extra_specs'])
 
-    def get_flavor_extra_spec(self, flavor_id):
+    def list_flavor_extra_specs(self, flavor_id):
         """Gets extra Specs details of the mentioned flavor."""
         resp, body = self.get('flavors/%s/os-extra_specs' % flavor_id)
         body = json.loads(body)
-        self.validate_response(schema_extra_specs.flavor_extra_specs,
+        self.validate_response(schema_extra_specs.set_get_flavor_extra_specs,
                                resp, body)
         return service_client.ResponseBody(resp, body['extra_specs'])
 
-    def get_flavor_extra_spec_with_key(self, flavor_id, key):
+    def show_flavor_extra_spec(self, flavor_id, key):
         """Gets extra Specs key-value of the mentioned flavor and key."""
         resp, body = self.get('flavors/%s/os-extra_specs/%s' % (str(flavor_id),
                               key))
         body = json.loads(body)
-        self.validate_response(schema_extra_specs.flavor_extra_specs_key,
-                               resp, body)
+        self.validate_response(
+            schema_extra_specs.set_get_flavor_extra_specs_key,
+            resp, body)
         return service_client.ResponseBody(resp, body)
 
     def update_flavor_extra_spec(self, flavor_id, key, **kwargs):
@@ -129,8 +131,9 @@ class FlavorsClientJSON(service_client.ServiceClient):
         resp, body = self.put('flavors/%s/os-extra_specs/%s' %
                               (flavor_id, key), json.dumps(kwargs))
         body = json.loads(body)
-        self.validate_response(schema_extra_specs.flavor_extra_specs_key,
-                               resp, body)
+        self.validate_response(
+            schema_extra_specs.set_get_flavor_extra_specs_key,
+            resp, body)
         return service_client.ResponseBody(resp, body)
 
     def unset_flavor_extra_spec(self, flavor_id, key):

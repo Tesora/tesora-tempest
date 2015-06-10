@@ -13,10 +13,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from tempest.api.identity import base
+from tempest import config
+from tempest import test
+
 from tempest_lib.common.utils import data_utils
 
-from tempest.api.identity import base
-from tempest import test
+CONF = config.CONF
 
 
 class DomainsTestJSON(base.BaseIdentityV3AdminTest):
@@ -76,12 +79,12 @@ class DomainsTestJSON(base.BaseIdentityV3AdminTest):
         self.assertIsNotNone(updated_domain['id'])
         self.assertEqual(new_name, updated_domain['name'])
         self.assertEqual(new_desc, updated_domain['description'])
-        self.assertEqual('true', str(updated_domain['enabled']).lower())
+        self.assertEqual(True, updated_domain['enabled'])
 
         fetched_domain = self.client.get_domain(domain['id'])
         self.assertEqual(new_name, fetched_domain['name'])
         self.assertEqual(new_desc, fetched_domain['description'])
-        self.assertEqual('true', str(fetched_domain['enabled']).lower())
+        self.assertEqual(True, fetched_domain['enabled'])
 
     @test.idempotent_id('036df86e-bb5d-42c0-a7c2-66b9db3a6046')
     def test_create_domain_with_disabled_status(self):
@@ -105,3 +108,18 @@ class DomainsTestJSON(base.BaseIdentityV3AdminTest):
         expected_data = {'name': d_name, 'enabled': True}
         self.assertIsNone(domain['description'])
         self.assertDictContainsSubset(expected_data, domain)
+
+
+class DefaultDomainTestJSON(base.BaseIdentityV3AdminTest):
+
+    @classmethod
+    def resource_setup(cls):
+        cls.domain_id = CONF.identity.default_domain_id
+        super(DefaultDomainTestJSON, cls).resource_setup()
+
+    @test.attr(type='smoke')
+    @test.idempotent_id('17a5de24-e6a0-4e4a-a9ee-d85b6e5612b5')
+    def test_default_domain_exists(self):
+        domain = self.client.get_domain(self.domain_id)
+
+        self.assertTrue(domain['enabled'])
