@@ -20,7 +20,6 @@ from tempest_lib.common.utils import data_utils
 import testtools
 
 from tempest.api.object_storage import base
-from tempest import clients
 from tempest.common import custom_matchers
 from tempest import config
 from tempest import test
@@ -30,14 +29,15 @@ CONF = config.CONF
 
 class AccountTest(base.BaseObjectTest):
 
+    credentials = [['operator', CONF.object_storage.operator_role],
+                   ['operator_alt', CONF.object_storage.operator_role]]
     containers = []
 
     @classmethod
     def setup_credentials(cls):
         super(AccountTest, cls).setup_credentials()
-        cls.os_operator = clients.Manager(
-            cls.isolated_creds.get_creds_by_roles(
-                roles=[CONF.object_storage.operator_role], force_new=True))
+        cls.os = cls.os_roles_operator
+        cls.os_operator = cls.os_roles_operator_alt
 
     @classmethod
     def resource_setup(cls):
