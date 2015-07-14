@@ -16,11 +16,11 @@
 import socket
 
 import netaddr
-from tempest_lib.common.utils import data_utils
 
 from tempest.api.network import base
 from tempest.api.network import base_security_groups as sec_base
 from tempest.common import custom_matchers
+from tempest.common.utils import data_utils
 from tempest import config
 from tempest import test
 
@@ -344,8 +344,6 @@ class PortsAdminExtendedAttrsTestJSON(base.BaseAdminNetworkTest):
         super(PortsAdminExtendedAttrsTestJSON, cls).resource_setup()
         cls.network = cls.create_network()
         cls.host_id = socket.gethostname()
-        cls.tenant = cls.identity_client.get_tenant_by_name(
-            CONF.identity.tenant_name)
 
     @test.idempotent_id('8e8569c1-9ac7-44db-8bc1-f5fb2814f29b')
     def test_create_port_binding_ext_attr(self):

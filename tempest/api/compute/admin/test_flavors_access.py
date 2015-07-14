@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest_lib.common.utils import data_utils
-
 from tempest.api.compute import base
+from tempest.common.utils import data_utils
 from tempest import test
 
 
@@ -87,7 +86,7 @@ class FlavorsAccessTestJSON(base.BaseV2ComputeAdminTest):
         self.assertIn(resp_body, add_body)
 
         # The flavor is present in list.
-        flavors = self.flavors_client.list_flavors_with_detail()
+        flavors = self.flavors_client.list_flavors(detail=True)
         self.assertIn(new_flavor['id'], map(lambda x: x['id'], flavors))
 
         # Remove flavor access from a tenant.
@@ -96,5 +95,5 @@ class FlavorsAccessTestJSON(base.BaseV2ComputeAdminTest):
         self.assertNotIn(resp_body, remove_body)
 
         # The flavor is not present in list.
-        flavors = self.flavors_client.list_flavors_with_detail()
+        flavors = self.flavors_client.list_flavors(detail=True)
         self.assertNotIn(new_flavor['id'], map(lambda x: x['id'], flavors))

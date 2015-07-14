@@ -14,12 +14,12 @@ import datetime
 import re
 
 from oslo_utils import timeutils
-from tempest_lib.common.utils import data_utils
 from tempest_lib import exceptions as lib_exc
 
 from tempest.api.identity import base
 from tempest import clients
 from tempest.common import cred_provider
+from tempest.common.utils import data_utils
 from tempest import config
 from tempest import test
 
@@ -46,7 +46,7 @@ class BaseTrustsV3Test(base.BaseIdentityV3AdminTest):
 
     def create_trustor_and_roles(self):
         # create a project that trusts will be granted on
-        self.trustor_project_name = data_utils.rand_name(name='project-')
+        self.trustor_project_name = data_utils.rand_name(name='project')
         project = self.client.create_project(self.trustor_project_name,
                                              domain_id='default')
         self.trustor_project_id = project['id']

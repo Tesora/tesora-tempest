@@ -14,10 +14,10 @@
 #    under the License.
 
 from oslo_log import log as logging
-from tempest_lib.common.utils import data_utils
 from tempest_lib import exceptions as lib_exc
 
 from tempest.common import fixed_network
+from tempest.common.utils import data_utils
 from tempest import config
 from tempest.scenario import manager
 from tempest import test
@@ -102,7 +102,7 @@ class TestLargeOpsScenario(manager.ScenarioTest):
             **create_kwargs)
         # needed because of bug 1199788
         params = {'name': name}
-        server_list = self.servers_client.list_servers(params)
+        server_list = self.servers_client.list_servers(**params)
         self.servers = server_list['servers']
         for server in self.servers:
             # after deleting all servers - wait for all servers to clear

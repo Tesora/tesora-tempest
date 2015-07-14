@@ -18,7 +18,7 @@ from tempest.api_schema.response.compute.v2_1 import tenant_networks as schema
 from tempest.common import service_client
 
 
-class TenantNetworksClientJSON(service_client.ServiceClient):
+class TenantNetworksClient(service_client.ServiceClient):
 
     def list_tenant_networks(self):
         resp, body = self.get("os-tenant-networks")
@@ -26,8 +26,8 @@ class TenantNetworksClientJSON(service_client.ServiceClient):
         self.validate_response(schema.list_tenant_networks, resp, body)
         return service_client.ResponseBodyList(resp, body['networks'])
 
-    def get_tenant_network(self, network_id):
-        resp, body = self.get("os-tenant-networks/%s" % str(network_id))
+    def show_tenant_network(self, network_id):
+        resp, body = self.get("os-tenant-networks/%s" % network_id)
         body = json.loads(body)
         self.validate_response(schema.get_tenant_network, resp, body)
         return service_client.ResponseBody(resp, body['network'])

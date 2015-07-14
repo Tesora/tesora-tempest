@@ -14,9 +14,9 @@
 #    under the License.
 
 import six
-from tempest_lib.common.utils import data_utils
 
 from tempest.api.network import base
+from tempest.common.utils import data_utils
 from tempest import test
 
 
@@ -89,11 +89,4 @@ class QuotasTest(base.BaseAdminNetworkTest):
     @test.idempotent_id('2390f766-836d-40ef-9aeb-e810d78207fb')
     def test_quotas(self):
         new_quotas = {'network': 0, 'security_group': 0}
-        self._check_quotas(new_quotas)
-
-    @test.idempotent_id('a7add2b1-691e-44d6-875f-697d9685f091')
-    @test.requires_ext(extension='lbaas', service='network')
-    def test_lbaas_quotas(self):
-        new_quotas = {'vip': 1, 'pool': 2,
-                      'member': 3, 'health_monitor': 4}
         self._check_quotas(new_quotas)

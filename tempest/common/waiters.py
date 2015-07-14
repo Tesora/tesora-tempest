@@ -33,7 +33,7 @@ def wait_for_server_status(client, server_id, status, ready_wait=True,
 
     # NOTE(afazekas): UNKNOWN status possible on ERROR
     # or in a very early stage.
-    body = client.get_server(server_id)
+    body = client.show_server(server_id)
     old_status = server_status = body['status']
     old_task_state = task_state = _get_task_state(body)
     start_time = int(time.time())
@@ -60,7 +60,7 @@ def wait_for_server_status(client, server_id, status, ready_wait=True,
                 return
 
         time.sleep(client.build_interval)
-        body = client.get_server(server_id)
+        body = client.show_server(server_id)
         server_status = body['status']
         task_state = _get_task_state(body)
         if (server_status != old_status) or (task_state != old_task_state):
@@ -129,6 +129,27 @@ def wait_for_image_status(client, image_id, status):
             caller = misc_utils.find_test_caller()
             if caller:
                 message = '(%s) %s' % (caller, message)
+            raise exceptions.TimeoutException(message)
+
+
+def wait_for_volume_status(client, volume_id, status):
+    """Waits for a Volume to reach a given status."""
+    body = client.show_volume(volume_id)
+    volume_status = body['status']
+    start = int(time.time())
+
+    while volume_status != status:
+        time.sleep(client.build_interval)
+        body = client.show_volume(volume_id)
+        volume_status = body['status']
+        if volume_status == 'error':
+            raise exceptions.VolumeBuildErrorException(volume_id=volume_id)
+
+        if int(time.time()) - start >= client.build_timeout:
+            message = ('Volume %s failed to reach %s status (current %s) '
+                       'within the required time (%s s).' %
+                       (volume_id, status, volume_status,
+                        client.build_timeout))
             raise exceptions.TimeoutException(message)
 
 

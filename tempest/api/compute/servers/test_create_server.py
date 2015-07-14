@@ -16,10 +16,10 @@
 import base64
 
 import netaddr
-from tempest_lib.common.utils import data_utils
 import testtools
 
 from tempest.api.compute import base
+from tempest.common.utils import data_utils
 from tempest.common.utils.linux import remote_client
 from tempest import config
 from tempest import test
@@ -53,15 +53,17 @@ class ServersTestJSON(base.BaseV2ComputeTest):
         personality = [{'path': '/test.txt',
                        'contents': base64.b64encode(file_contents)}]
         disk_config = cls.disk_config
-        cls.server_initial = cls.create_test_server(name=cls.name,
-                                                    meta=cls.meta,
-                                                    accessIPv4=cls.accessIPv4,
-                                                    accessIPv6=cls.accessIPv6,
-                                                    personality=personality,
-                                                    disk_config=disk_config)
+        cls.server_initial = cls.create_test_server(
+            validatable=True,
+            wait_until='ACTIVE',
+            name=cls.name,
+            meta=cls.meta,
+            accessIPv4=cls.accessIPv4,
+            accessIPv6=cls.accessIPv6,
+            personality=personality,
+            disk_config=disk_config)
         cls.password = cls.server_initial['adminPass']
-        cls.client.wait_for_server_status(cls.server_initial['id'], 'ACTIVE')
-        cls.server = cls.client.get_server(cls.server_initial['id'])
+        cls.server = cls.client.show_server(cls.server_initial['id'])
 
     @test.attr(type='smoke')
     @test.idempotent_id('5de47127-9977-400a-936f-abcfbec1218f')
@@ -89,7 +91,7 @@ class ServersTestJSON(base.BaseV2ComputeTest):
     @test.idempotent_id('585e934c-448e-43c4-acbf-d06a9b899997')
     def test_list_servers_with_detail(self):
         # The created server should be in the detailed list of all servers
-        body = self.client.list_servers_with_detail()
+        body = self.client.list_servers(detail=True)
         servers = body['servers']
         found = any([i for i in servers if i['id'] == self.server['id']])
         self.assertTrue(found)
@@ -119,17 +121,18 @@ class ServersTestJSON(base.BaseV2ComputeTest):
         # Create a server with the scheduler hint "group".
         name = data_utils.rand_name('server_group')
         policies = ['affinity']
-        body = self.client.create_server_group(name=name,
-                                               policies=policies)
+        body = self.server_groups_client.create_server_group(
+            name=name, policies=policies)
         group_id = body['id']
-        self.addCleanup(self.client.delete_server_group, group_id)
+        self.addCleanup(self.server_groups_client.delete_server_group,
+                        group_id)
 
         hints = {'group': group_id}
         server = self.create_test_server(sched_hints=hints,
                                          wait_until='ACTIVE')
 
         # Check a server is in the group
-        server_group = self.client.get_server_group(group_id)
+        server_group = self.server_groups_client.get_server_group(group_id)
         self.assertIn(server['id'], server_group['members'])
 
     @test.idempotent_id('0578d144-ed74-43f8-8e57-ab10dbf9b3c2')
@@ -263,13 +266,13 @@ class ServersWithSpecificFlavorTestJSON(base.BaseV2ComputeAdminTest):
                                 adminPass=admin_pass,
                                 flavor=flavor_with_eph_disk_id))
         # Get partition number of server without extra specs.
-        server_no_eph_disk = self.client.get_server(
+        server_no_eph_disk = self.client.show_server(
             server_no_eph_disk['id'])
         linux_client = remote_client.RemoteClient(server_no_eph_disk,
                                                   self.ssh_user, admin_pass)
         partition_num = len(linux_client.get_partitions().split('\n'))
 
-        server_with_eph_disk = self.client.get_server(
+        server_with_eph_disk = self.client.show_server(
             server_with_eph_disk['id'])
         linux_client = remote_client.RemoteClient(server_with_eph_disk,
                                                   self.ssh_user, admin_pass)

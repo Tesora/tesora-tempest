@@ -13,9 +13,9 @@
 import time
 
 from oslo_utils import timeutils
-from tempest_lib.common.utils import data_utils
 from tempest_lib import exceptions as lib_exc
 
+from tempest.common.utils import data_utils
 from tempest import config
 from tempest import exceptions
 import tempest.test
@@ -55,8 +55,7 @@ class BaseTelemetryTest(tempest.test.BaseTestCase):
         cls.nova_notifications = ['memory', 'vcpus', 'disk.root.size',
                                   'disk.ephemeral.size']
 
-        cls.glance_notifications = ['image.update', 'image.upload',
-                                    'image.delete']
+        cls.glance_notifications = ['image.size']
 
         cls.glance_v2_notifications = ['image.download', 'image.serve']
 

@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest_lib.common.utils import data_utils
-
 from tempest.api.compute import base
+from tempest.common.utils import data_utils
 from tempest import test
 
 
@@ -82,7 +81,7 @@ class KeyPairsV2TestJSON(base.BaseComputeTest):
         # Keypair should be created, Got details by name and deleted
         k_name = data_utils.rand_name('keypair')
         self._create_keypair(k_name)
-        keypair_detail = self.client.get_keypair(k_name)
+        keypair_detail = self.client.show_keypair(k_name)
         self.assertIn('name', keypair_detail)
         self.assertIn('public_key', keypair_detail)
         self.assertEqual(keypair_detail['name'], k_name,
