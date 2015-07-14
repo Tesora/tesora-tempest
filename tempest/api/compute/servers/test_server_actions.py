@@ -17,12 +17,12 @@ import base64
 import logging
 
 from six.moves.urllib import parse as urlparse
-from tempest_lib.common.utils import data_utils
 from tempest_lib import decorators
 from tempest_lib import exceptions as lib_exc
 import testtools
 
 from tempest.api.compute import base
+from tempest.common.utils import data_utils
 from tempest.common.utils.linux import remote_client
 from tempest import config
 from tempest import test
@@ -76,7 +76,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
 
         if self.run_ssh:
             # Verify that the user can authenticate with the new password
-            server = self.client.get_server(self.server_id)
+            server = self.client.show_server(self.server_id)
             linux_client = remote_client.RemoteClient(server, self.ssh_user,
                                                       new_password)
             linux_client.validate_authentication()
@@ -84,7 +84,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
     def _test_reboot_server(self, reboot_type):
         if self.run_ssh:
             # Get the time the server was last rebooted,
-            server = self.client.get_server(self.server_id)
+            server = self.client.show_server(self.server_id)
             linux_client = remote_client.RemoteClient(server, self.ssh_user,
                                                       self.password)
             boot_time = linux_client.get_boot_time()
@@ -149,7 +149,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
 
         # Verify the server properties after the rebuild completes
         self.client.wait_for_server_status(rebuilt_server['id'], 'ACTIVE')
-        server = self.client.get_server(rebuilt_server['id'])
+        server = self.client.show_server(rebuilt_server['id'])
         rebuilt_image_id = server['image']['id']
         self.assertTrue(self.image_ref_alt.endswith(rebuilt_image_id))
         self.assertEqual(new_name, server['name'])
@@ -164,7 +164,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
     def test_rebuild_server_in_stop_state(self):
         # The server in stop state  should be rebuilt using the provided
         # image and remain in SHUTOFF state
-        server = self.client.get_server(self.server_id)
+        server = self.client.show_server(self.server_id)
         old_image = server['image']['id']
         new_image = (self.image_ref_alt
                      if old_image == self.image_ref else self.image_ref)
@@ -184,7 +184,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
 
         # Verify the server properties after the rebuild completes
         self.client.wait_for_server_status(rebuilt_server['id'], 'SHUTOFF')
-        server = self.client.get_server(rebuilt_server['id'])
+        server = self.client.show_server(rebuilt_server['id'])
         rebuilt_image_id = server['image']['id']
         self.assertEqual(new_image, rebuilt_image_id)
 
@@ -206,7 +206,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
         expected_status = 'SHUTOFF' if stop else 'ACTIVE'
         self.client.wait_for_server_status(self.server_id, expected_status)
 
-        server = self.client.get_server(self.server_id)
+        server = self.client.show_server(self.server_id)
         self.assertEqual(self.flavor_ref_alt, server['flavor']['id'])
 
         if stop:
@@ -242,7 +242,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
         self.client.revert_resize(self.server_id)
         self.client.wait_for_server_status(self.server_id, 'ACTIVE')
 
-        server = self.client.get_server(self.server_id)
+        server = self.client.show_server(self.server_id)
         self.assertEqual(self.flavor_ref, server['flavor']['id'])
 
     @test.idempotent_id('b963d4f1-94b3-4c40-9e97-7b583f46e470')
@@ -427,10 +427,10 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
             self.client.wait_for_server_status(self.server_id,
                                                'SHELVED_OFFLOADED')
 
-        server = self.client.get_server(self.server_id)
+        server = self.client.show_server(self.server_id)
         image_name = server['name'] + '-shelved'
         params = {'name': image_name}
-        images = self.images_client.list_images(params)
+        images = self.images_client.list_images(**params)
         self.assertEqual(1, len(images))
         self.assertEqual(image_name, images[0]['name'])
 
@@ -448,7 +448,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
     def test_lock_unlock_server(self):
         # Lock the server,try server stop(exceptions throw),unlock it and retry
         self.servers_client.lock_server(self.server_id)
-        server = self.servers_client.get_server(self.server_id)
+        server = self.servers_client.show_server(self.server_id)
         self.assertEqual(server['status'], 'ACTIVE')
         # Locked server is not allowed to be stopped by non-admin user
         self.assertRaises(lib_exc.Conflict,

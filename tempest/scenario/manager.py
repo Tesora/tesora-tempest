@@ -19,11 +19,11 @@ import subprocess
 import netaddr
 from oslo_log import log
 import six
-from tempest_lib.common.utils import data_utils
 from tempest_lib.common.utils import misc as misc_utils
 from tempest_lib import exceptions as lib_exc
 
 from tempest.common import fixed_network
+from tempest.common.utils import data_utils
 from tempest.common.utils.linux import remote_client
 from tempest import config
 from tempest import exceptions
@@ -182,7 +182,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         # The instance retrieved on creation is missing network
         # details, necessitating retrieval after it becomes active to
         # ensure correct details.
-        server = self.servers_client.get_server(server['id'])
+        server = self.servers_client.show_server(server['id'])
         self.assertEqual(server['name'], name)
         return server
 
@@ -559,27 +559,27 @@ class NetworkScenarioTest(ScenarioTest):
 
     def _list_networks(self, *args, **kwargs):
         """List networks using admin creds """
-        return self._admin_lister('networks')(*args, **kwargs)
+        networks_list = self.admin_manager.network_client.list_networks(
+            *args, **kwargs)
+        return networks_list['networks']
 
     def _list_subnets(self, *args, **kwargs):
         """List subnets using admin creds """
-        return self._admin_lister('subnets')(*args, **kwargs)
+        subnets_list = self.admin_manager.network_client.list_subnets(
+            *args, **kwargs)
+        return subnets_list['subnets']
 
     def _list_routers(self, *args, **kwargs):
         """List routers using admin creds """
-        return self._admin_lister('routers')(*args, **kwargs)
+        routers_list = self.admin_manager.network_client.list_routers(
+            *args, **kwargs)
+        return routers_list['routers']
 
     def _list_ports(self, *args, **kwargs):
         """List ports using admin creds """
-        return self._admin_lister('ports')(*args, **kwargs)
-
-    def _admin_lister(self, resource_type):
-        def temp(*args, **kwargs):
-            temp_method = self.admin_manager.network_client.__getattr__(
-                'list_%s' % resource_type)
-            resource_list = temp_method(*args, **kwargs)
-            return resource_list[resource_type]
-        return temp
+        ports_list = self.admin_manager.network_client.list_ports(
+            *args, **kwargs)
+        return ports_list['ports']
 
     def _create_subnet(self, network, client=None, namestart='subnet-smoke',
                        **kwargs):
@@ -934,41 +934,6 @@ class NetworkScenarioTest(ScenarioTest):
 
         return rules
 
-    def _create_pool(self, lb_method, protocol, subnet_id):
-        """Wrapper utility that returns a test pool."""
-        client = self.network_client
-        name = data_utils.rand_name('pool')
-        resp_pool = client.create_pool(protocol=protocol, name=name,
-                                       subnet_id=subnet_id,
-                                       lb_method=lb_method)
-        pool = net_resources.DeletablePool(client=client, **resp_pool['pool'])
-        self.assertEqual(pool['name'], name)
-        self.addCleanup(self.delete_wrapper, pool.delete)
-        return pool
-
-    def _create_member(self, address, protocol_port, pool_id):
-        """Wrapper utility that returns a test member."""
-        client = self.network_client
-        resp_member = client.create_member(protocol_port=protocol_port,
-                                           pool_id=pool_id,
-                                           address=address)
-        member = net_resources.DeletableMember(client=client,
-                                               **resp_member['member'])
-        self.addCleanup(self.delete_wrapper, member.delete)
-        return member
-
-    def _create_vip(self, protocol, protocol_port, subnet_id, pool_id):
-        """Wrapper utility that returns a test vip."""
-        client = self.network_client
-        name = data_utils.rand_name('vip')
-        resp_vip = client.create_vip(protocol=protocol, name=name,
-                                     subnet_id=subnet_id, pool_id=pool_id,
-                                     protocol_port=protocol_port)
-        vip = net_resources.DeletableVip(client=client, **resp_vip['vip'])
-        self.assertEqual(vip['name'], name)
-        self.addCleanup(self.delete_wrapper, vip.delete)
-        return vip
-
     def _ssh_to_server(self, server, private_key):
         ssh_login = CONF.compute.image_ssh_user
         return self.get_remote_client(server,
@@ -1264,7 +1229,7 @@ class BaremetalScenarioTest(ScenarioTest):
         self.servers_client.wait_for_server_status(self.instance['id'],
                                                    'ACTIVE')
         self.node = self.get_node(instance_id=self.instance['id'])
-        self.instance = self.servers_client.get_server(self.instance['id'])
+        self.instance = self.servers_client.show_server(self.instance['id'])
 
     def terminate_instance(self):
         self.servers_client.delete_server(self.instance['id'])

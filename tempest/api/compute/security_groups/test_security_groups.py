@@ -13,10 +13,10 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest_lib.common.utils import data_utils
 from tempest_lib import exceptions as lib_exc
 
 from tempest.api.compute.security_groups import base
+from tempest.common.utils import data_utils
 from tempest import test
 
 
@@ -75,7 +75,7 @@ class SecurityGroupsTestJSON(base.BaseSecurityGroupsTest):
                          "not equal to the requested name")
         # Now fetch the created Security Group by its 'id'
         fetched_group = \
-            self.client.get_security_group(securitygroup['id'])
+            self.client.show_security_group(securitygroup['id'])
         self.assertEqual(securitygroup, fetched_group,
                          "The fetched Security Group is different "
                          "from the created Group")
@@ -141,6 +141,6 @@ class SecurityGroupsTestJSON(base.BaseSecurityGroupsTest):
                                           description=s_new_des)
         # get the security group
         fetched_group = \
-            self.client.get_security_group(securitygroup_id)
+            self.client.show_security_group(securitygroup_id)
         self.assertEqual(s_new_name, fetched_group['name'])
         self.assertEqual(s_new_des, fetched_group['description'])

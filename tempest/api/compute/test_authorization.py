@@ -16,10 +16,10 @@
 import six
 
 from oslo_log import log as logging
-from tempest_lib.common.utils import data_utils
 from tempest_lib import exceptions as lib_exc
 
 from tempest.api.compute import base
+from tempest.common.utils import data_utils
 from tempest import config
 from tempest import test
 
@@ -62,7 +62,7 @@ class AuthorizationTestJSON(base.BaseV2ComputeTest):
     def resource_setup(cls):
         super(AuthorizationTestJSON, cls).resource_setup()
         server = cls.create_test_server(wait_until='ACTIVE')
-        cls.server = cls.client.get_server(server['id'])
+        cls.server = cls.client.show_server(server['id'])
 
         name = data_utils.rand_name('image')
         body = cls.glance_client.create_image(name=name,
@@ -103,7 +103,7 @@ class AuthorizationTestJSON(base.BaseV2ComputeTest):
     @test.idempotent_id('56816e4a-bd34-47b5-aee9-268c3efeb5d4')
     def test_get_server_for_alt_account_fails(self):
         # A GET request for a server on another user's account should fail
-        self.assertRaises(lib_exc.NotFound, self.alt_client.get_server,
+        self.assertRaises(lib_exc.NotFound, self.alt_client.show_server,
                           self.server['id'])
 
     @test.idempotent_id('fb8a4870-6d9d-44ad-8375-95d52e98d9f6')
@@ -219,7 +219,7 @@ class AuthorizationTestJSON(base.BaseV2ComputeTest):
     def test_get_keypair_of_alt_account_fails(self):
         # A GET request for another user's keypair should fail
         self.assertRaises(lib_exc.NotFound,
-                          self.alt_keypairs_client.get_keypair,
+                          self.alt_keypairs_client.show_keypair,
                           self.keypairname)
 
     @test.idempotent_id('6d841683-a8e0-43da-a1b8-b339f7692b61')
@@ -271,7 +271,7 @@ class AuthorizationTestJSON(base.BaseV2ComputeTest):
     def test_get_security_group_of_alt_account_fails(self):
         # A GET request for another user's security group should fail
         self.assertRaises(lib_exc.NotFound,
-                          self.alt_security_client.get_security_group,
+                          self.alt_security_client.show_security_group,
                           self.security_group['id'])
 
     @test.idempotent_id('155387a5-2bbc-4acf-ab06-698dae537ea5')
@@ -356,7 +356,7 @@ class AuthorizationTestJSON(base.BaseV2ComputeTest):
         self.images_client.set_image_metadata(self.image['id'],
                                               req_metadata)
         self.assertRaises(lib_exc.NotFound,
-                          self.alt_images_client.get_image_metadata_item,
+                          self.alt_images_client.show_image_metadata_item,
                           self.image['id'], 'meta1')
 
     @test.idempotent_id('79531e2e-e721-493c-8b30-a35db36fdaa6')

@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest_lib.common.utils import data_utils
-
 from tempest.api.network import base_routers as base
+from tempest.common.utils import data_utils
 from tempest import test
 
 
@@ -36,10 +35,10 @@ class RoutersTestDVR(base.BaseRouterTest):
         super(RoutersTestDVR, cls).resource_setup()
         name = data_utils.rand_name('pretest-check')
         router = cls.admin_client.create_router(name)
-        if 'distributed' not in router['router']:
-            msg = "'distributed' attribute not found. DVR Possibly not enabled"
-            raise cls.skipException(msg)
         cls.admin_client.delete_router(router['router']['id'])
+        if 'distributed' not in router['router']:
+            msg = "'distributed' flag not found. DVR Possibly not enabled"
+            raise cls.skipException(msg)
 
     @test.idempotent_id('08a2a0a8-f1e4-4b34-8e30-e522e836c44e')
     def test_distributed_router_creation(self):

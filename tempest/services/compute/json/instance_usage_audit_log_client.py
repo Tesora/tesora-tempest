@@ -20,7 +20,7 @@ from tempest.api_schema.response.compute.v2_1 import \
 from tempest.common import service_client
 
 
-class InstanceUsagesAuditLogClientJSON(service_client.ServiceClient):
+class InstanceUsagesAuditLogClient(service_client.ServiceClient):
 
     def list_instance_usage_audit_logs(self):
         url = 'os-instance_usage_audit_log'
@@ -31,7 +31,7 @@ class InstanceUsagesAuditLogClientJSON(service_client.ServiceClient):
         return service_client.ResponseBody(resp,
                                            body["instance_usage_audit_logs"])
 
-    def get_instance_usage_audit_log(self, time_before):
+    def show_instance_usage_audit_log(self, time_before):
         url = 'os-instance_usage_audit_log/%s' % time_before
         resp, body = self.get(url)
         body = json.loads(body)

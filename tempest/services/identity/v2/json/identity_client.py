@@ -16,7 +16,8 @@ from tempest_lib import exceptions as lib_exc
 from tempest.common import service_client
 
 
-class IdentityClientJSON(service_client.ServiceClient):
+class IdentityClient(service_client.ServiceClient):
+    api_version = "v2.0"
 
     def get_api_description(self):
         """Retrieves info about the v2.0 Identity API"""

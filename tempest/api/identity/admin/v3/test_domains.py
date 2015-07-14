@@ -14,10 +14,9 @@
 #    under the License.
 
 from tempest.api.identity import base
+from tempest.common.utils import data_utils
 from tempest import config
 from tempest import test
-
-from tempest_lib.common.utils import data_utils
 
 CONF = config.CONF
 
@@ -101,7 +100,7 @@ class DomainsTestJSON(base.BaseIdentityV3AdminTest):
     @test.idempotent_id('2abf8764-309a-4fa9-bc58-201b799817ad')
     def test_create_domain_without_description(self):
         # Create domain only with name
-        d_name = data_utils.rand_name('domain-')
+        d_name = data_utils.rand_name('domain')
         domain = self.client.create_domain(d_name)
         self.addCleanup(self._delete_domain, domain['id'])
         self.assertIn('id', domain)
