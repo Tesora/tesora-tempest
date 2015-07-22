@@ -13,8 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import json
-
+from oslo_serialization import jsonutils as json
 from six.moves.urllib import parse as urllib
 from tempest_lib import exceptions as lib_exc
 
@@ -24,7 +23,7 @@ from tempest.common import service_client
 
 class FloatingIPsClient(service_client.ServiceClient):
 
-    def list_floating_ips(self, params=None):
+    def list_floating_ips(self, **params):
         """Returns a list of all floating IPs filtered by any parameters."""
         url = 'os-floating-ips'
         if params:
