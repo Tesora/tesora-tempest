@@ -15,7 +15,6 @@
 
 import atexit
 import functools
-import json
 import os
 import re
 import sys
@@ -25,6 +24,7 @@ import uuid
 
 import fixtures
 from oslo_log import log as logging
+from oslo_serialization import jsonutils as json
 from oslo_utils import importutils
 import six
 import testscenarios
@@ -44,7 +44,7 @@ CONF = config.CONF
 
 
 def attr(**kwargs):
-    """A decorator which applies the  testtools attr decorator
+    """A decorator which applies the testtools attr decorator
 
     This decorator applies the testtools.testcase.attr if it is in the list of
     attributes to testtools we want to apply.

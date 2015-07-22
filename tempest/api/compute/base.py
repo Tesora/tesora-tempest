@@ -144,8 +144,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
         """
         if getattr(cls, 'server_id', None) is not None:
             try:
-                cls.servers_client.wait_for_server_status(cls.server_id,
-                                                          'ACTIVE')
+                waiters.wait_for_server_status(cls.servers_client,
+                                               cls.server_id, 'ACTIVE')
             except Exception as exc:
                 LOG.exception(exc)
                 cls.servers_client.delete_server(cls.server_id)
@@ -266,8 +266,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
 
     @classmethod
     def prepare_instance_network(cls):
-        if (CONF.compute.ssh_auth_method != 'disabled' and
-                CONF.compute.ssh_connect_method == 'floating'):
+        if (CONF.validation.auth_method != 'disabled' and
+                CONF.validation.connect_method == 'floating'):
             cls.set_network_resources(network=True, subnet=True, router=True,
                                       dhcp=True)
 
@@ -289,12 +289,12 @@ class BaseComputeTest(tempest.test.BaseTestCase):
 
             if kwargs['wait_until'] == 'ACTIVE':
                 if kwargs.get('wait_for_server', True):
-                    cls.servers_client.wait_for_server_status(server_id,
-                                                              'ACTIVE')
+                    waiters.wait_for_server_status(cls.servers_client,
+                                                   server_id, 'ACTIVE')
         return image
 
     @classmethod
-    def rebuild_server(cls, server_id, **kwargs):
+    def rebuild_server(cls, server_id, validatable=False, **kwargs):
         # Destroy an existing server and creates a new one
         if server_id:
             try:
@@ -302,7 +302,11 @@ class BaseComputeTest(tempest.test.BaseTestCase):
                 cls.servers_client.wait_for_server_termination(server_id)
             except Exception:
                 LOG.exception('Failed to delete server %s' % server_id)
-        server = cls.create_test_server(wait_until='ACTIVE', **kwargs)
+
+        server = cls.create_test_server(
+            validatable,
+            wait_until='ACTIVE',
+            **kwargs)
         cls.password = server['adminPass']
         return server['id']
 
@@ -319,6 +323,21 @@ class BaseComputeTest(tempest.test.BaseTestCase):
     def delete_volume(cls, volume_id):
         """Deletes the given volume and waits for it to be gone."""
         cls._delete_volume(cls.volumes_extensions_client, volume_id)
+
+    @classmethod
+    def get_server_ip(cls, server):
+        """Get the server fixed or floating IP.
+
+        For the floating IP, the address created by the validation resources
+        is returned.
+        For the fixed IP, the server is returned and the current mechanism of
+        address extraction in the remote_client is followed.
+        """
+        if CONF.validation.connect_method == 'floating':
+            ip_or_server = cls.validation_resources['floating_ip']['ip']
+        elif CONF.validation.connect_method == 'fixed':
+            ip_or_server = server
+        return ip_or_server
 
 
 class BaseV2ComputeTest(BaseComputeTest):
