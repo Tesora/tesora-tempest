@@ -64,6 +64,7 @@ class BaseComputeTest(tempest.test.BaseTestCase):
         cls.floating_ip_pools_client = cls.os.floating_ip_pools_client
         cls.floating_ips_client = cls.os.floating_ips_client
         cls.keypairs_client = cls.os.keypairs_client
+        cls.security_group_rules_client = cls.os.security_group_rules_client
         cls.security_groups_client = cls.os.security_groups_client
         cls.quotas_client = cls.os.quotas_client
         # NOTE(mriedem): os-quota-class-sets is v2 API only
@@ -221,8 +222,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
         if description is None:
             description = data_utils.rand_name('description')
         body = \
-            cls.security_groups_client.create_security_group(name,
-                                                             description)
+            cls.security_groups_client.create_security_group(
+                name=name, description=description)
         cls.security_groups.append(body)
 
         return body
@@ -278,7 +279,7 @@ class BaseComputeTest(tempest.test.BaseTestCase):
         if 'name' in kwargs:
             name = kwargs.pop('name')
 
-        image = cls.images_client.create_image(server_id, name)
+        image = cls.images_client.create_image(server_id, name=name)
         image_id = data_utils.parse_image_id(image.response['location'])
         cls.images.append(image_id)
 

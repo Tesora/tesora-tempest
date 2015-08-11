@@ -54,6 +54,8 @@ class ScenarioTest(tempest.test.BaseTestCase):
         cls.keypairs_client = cls.manager.keypairs_client
         # Nova security groups client
         cls.security_groups_client = cls.manager.security_groups_client
+        cls.security_group_rules_client = (
+            cls.manager.security_group_rules_client)
         cls.servers_client = cls.manager.servers_client
         cls.volumes_client = cls.manager.volumes_client
         cls.snapshots_client = cls.manager.snapshots_client
@@ -94,7 +96,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
 
     def addCleanup_with_wait(self, waiter_callable, thing_id, thing_id_param,
                              cleanup_callable, cleanup_args=None,
-                             cleanup_kwargs=None, ignore_error=True):
+                             cleanup_kwargs=None):
         """Adds wait for async resource deletion at the end of cleanups
 
         @param waiter_callable: callable to wait for the resource to delete
@@ -138,7 +140,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
             client = self.keypairs_client
         name = data_utils.rand_name(self.__class__.__name__)
         # We don't need to create a keypair by pubkey in scenario
-        body = client.create_keypair(name)
+        body = client.create_keypair(name=name)
         self.addCleanup(client.delete_keypair, name)
         return body
 
@@ -217,6 +219,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
 
     def _create_loginable_secgroup_rule(self, secgroup_id=None):
         _client = self.security_groups_client
+        _client_rules = self.security_group_rules_client
         if secgroup_id is None:
             sgs = _client.list_security_groups()
             for sg in sgs:
@@ -230,14 +233,14 @@ class ScenarioTest(tempest.test.BaseTestCase):
         rulesets = [
             {
                 # ssh
-                'ip_proto': 'tcp',
+                'ip_protocol': 'tcp',
                 'from_port': 22,
                 'to_port': 22,
                 'cidr': '0.0.0.0/0',
             },
             {
                 # ping
-                'ip_proto': 'icmp',
+                'ip_protocol': 'icmp',
                 'from_port': -1,
                 'to_port': -1,
                 'cidr': '0.0.0.0/0',
@@ -245,10 +248,10 @@ class ScenarioTest(tempest.test.BaseTestCase):
         ]
         rules = list()
         for ruleset in rulesets:
-            sg_rule = _client.create_security_group_rule(secgroup_id,
-                                                         **ruleset)
+            sg_rule = _client_rules.create_security_group_rule(
+                parent_group_id=secgroup_id, **ruleset)
             self.addCleanup(self.delete_wrapper,
-                            _client.delete_security_group_rule,
+                            _client_rules.delete_security_group_rule,
                             sg_rule['id'])
             rules.append(sg_rule)
         return rules
@@ -258,7 +261,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         sg_name = data_utils.rand_name(self.__class__.__name__)
         sg_desc = sg_name + " description"
         secgroup = self.security_groups_client.create_security_group(
-            sg_name, sg_desc)
+            name=sg_name, description=sg_desc)
         self.assertEqual(secgroup['name'], sg_name)
         self.assertEqual(secgroup['description'], sg_desc)
         self.addCleanup(self.delete_wrapper,
@@ -399,7 +402,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         if name is None:
             name = data_utils.rand_name('scenario-snapshot')
         LOG.debug("Creating a snapshot image for server: %s", server['name'])
-        image = _images_client.create_image(server['id'], name)
+        image = _images_client.create_image(server['id'], name=name)
         image_id = image.response['location'].split('images/')[1]
         _image_client.wait_for_image_status(image_id, 'active')
         self.addCleanup_with_wait(
