@@ -122,6 +122,7 @@ import yaml
 from tempest import config
 from tempest.services.compute.json import flavors_client
 from tempest.services.compute.json import floating_ips_client
+from tempest.services.compute.json import security_group_rules_client
 from tempest.services.compute.json import security_groups_client
 from tempest.services.compute.json import servers_client
 from tempest.services.identity.v2.json import identity_client
@@ -201,6 +202,8 @@ class OSClient(object):
         self.floating_ips = floating_ips_client.FloatingIPsClient(
             _auth, **compute_params)
         self.secgroups = security_groups_client.SecurityGroupsClient(
+            _auth, **compute_params)
+        self.secrules = security_group_rules_client.SecurityGroupRulesClient(
             _auth, **compute_params)
         self.objects = object_client.ObjectClient(_auth,
                                                   **object_storage_params)
@@ -912,13 +915,14 @@ def create_secgroups(secgroups):
             continue
 
         body = client.secgroups.create_security_group(
-            secgroup['name'], secgroup['description'])
+            name=secgroup['name'], description=secgroup['description'])
         secgroup_id = body['id']
         # for each security group, create the rules
         for rule in secgroup['rules']:
             ip_proto, from_port, to_port, cidr = rule.split()
-            client.secgroups.create_security_group_rule(
-                secgroup_id, ip_proto, from_port, to_port, cidr=cidr)
+            client.secrules.create_security_group_rule(
+                parent_group_id=secgroup_id, ip_protocol=ip_proto,
+                from_port=from_port, to_port=to_port, cidr=cidr)
 
 
 def destroy_secgroups(secgroups):
