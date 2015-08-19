@@ -206,15 +206,7 @@ class ServersClient(service_client.ServiceClient):
                                post_body)
         if response_key is not None:
             body = json.loads(body)
-            # Check for Schema as 'None' because if we do not have any server
-            # action schema implemented yet then they can pass 'None' to skip
-            # the validation.Once all server action has their schema
-            # implemented then, this check can be removed if every actions are
-            # supposed to validate their response.
-            # TODO(GMann): Remove the below 'if' check once all server actions
-            # schema are implemented.
-            if schema is not None:
-                self.validate_response(schema, resp, body)
+            self.validate_response(schema, resp, body)
             body = body[response_key]
         else:
             self.validate_response(schema, resp, body)
@@ -341,14 +333,9 @@ class ServersClient(service_client.ServiceClient):
     def start(self, server_id, **kwargs):
         return self.action(server_id, 'os-start', None, **kwargs)
 
-    def attach_volume(self, server_id, volume_id, device='/dev/vdz'):
+    def attach_volume(self, server_id, **kwargs):
         """Attaches a volume to a server instance."""
-        post_body = json.dumps({
-            'volumeAttachment': {
-                'volumeId': volume_id,
-                'device': device,
-            }
-        })
+        post_body = json.dumps({'volumeAttachment': kwargs})
         resp, body = self.post('servers/%s/os-volume_attachments' % server_id,
                                post_body)
         body = json.loads(body)
@@ -386,16 +373,10 @@ class ServersClient(service_client.ServiceClient):
         """Removes a security group from the server."""
         return self.action(server_id, 'removeSecurityGroup', None, name=name)
 
-    def live_migrate_server(self, server_id, dest_host, use_block_migration):
+    def live_migrate_server(self, server_id, **kwargs):
         """This should be called with administrator privileges ."""
 
-        migrate_params = {
-            "disk_over_commit": False,
-            "block_migration": use_block_migration,
-            "host": dest_host
-        }
-
-        req_body = json.dumps({'os-migrateLive': migrate_params})
+        req_body = json.dumps({'os-migrateLive': kwargs})
 
         resp, body = self.post("servers/%s/action" % server_id, req_body)
         self.validate_response(schema.server_actions_common_schema,

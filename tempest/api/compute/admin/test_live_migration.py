@@ -32,6 +32,7 @@ class LiveBlockMigrationTestJSON(base.BaseV2ComputeAdminTest):
         super(LiveBlockMigrationTestJSON, cls).setup_clients()
         cls.admin_hosts_client = cls.os_adm.hosts_client
         cls.admin_servers_client = cls.os_adm.servers_client
+        cls.admin_migration_client = cls.os_adm.migrations_client
 
     @classmethod
     def resource_setup(cls):
@@ -55,9 +56,10 @@ class LiveBlockMigrationTestJSON(base.BaseV2ComputeAdminTest):
         return self._get_server_details(server_id)[self._host_key]
 
     def _migrate_server_to(self, server_id, dest_host):
+        bmflm = CONF.compute_feature_enabled.block_migration_for_live_migration
         body = self.admin_servers_client.live_migrate_server(
-            server_id, dest_host,
-            CONF.compute_feature_enabled.block_migration_for_live_migration)
+            server_id, host=dest_host, block_migration=bmflm,
+            disk_over_commit=False)
         return body
 
     def _get_host_other_than(self, host):
@@ -109,7 +111,16 @@ class LiveBlockMigrationTestJSON(base.BaseV2ComputeAdminTest):
 
         self._migrate_server_to(server_id, target_host)
         waiters.wait_for_server_status(self.servers_client, server_id, state)
-        self.assertEqual(target_host, self._get_host_for_server(server_id))
+        migration_list = self.admin_migration_client.list_migrations()
+
+        msg = ("Live Migration failed. Migrations list for Instance "
+               "%s: [" % server_id)
+        for live_migration in migration_list:
+            if (live_migration['instance_uuid'] == server_id):
+                msg += "\n%s" % live_migration
+        msg += "]"
+        self.assertEqual(target_host, self._get_host_for_server(server_id),
+                         msg)
 
     @test.idempotent_id('1dce86b8-eb04-4c03-a9d8-9c1dc3ee0c7b')
     @testtools.skipUnless(CONF.compute_feature_enabled.live_migration,
@@ -153,7 +164,7 @@ class LiveBlockMigrationTestJSON(base.BaseV2ComputeAdminTest):
         self.addCleanup(self._volume_clean_up, server_id, volume['id'])
 
         # Attach the volume to the server
-        self.servers_client.attach_volume(server_id, volume['id'],
+        self.servers_client.attach_volume(server_id, volumeId=volume['id'],
                                           device='/dev/xvdb')
         self.volumes_client.wait_for_volume_status(volume['id'], 'in-use')
 

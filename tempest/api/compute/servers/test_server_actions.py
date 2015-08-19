@@ -323,7 +323,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
             properties=properties,
             status='active',
             sort_key='created_at',
-            sort_dir='asc')
+            sort_dir='asc')['images']
         self.assertEqual(2, len(image_list))
         self.assertEqual((backup1, backup2),
                          (image_list[0]['name'], image_list[1]['name']))
@@ -347,7 +347,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
             properties=properties,
             status='active',
             sort_key='created_at',
-            sort_dir='asc')
+            sort_dir='asc')['images']
         self.assertEqual(2, len(image_list),
                          'Unexpected number of images for '
                          'v2:test_create_backup; was the oldest backup not '
@@ -474,6 +474,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
     def test_lock_unlock_server(self):
         # Lock the server,try server stop(exceptions throw),unlock it and retry
         self.client.lock_server(self.server_id)
+        self.addCleanup(self.client.unlock_server, self.server_id)
         server = self.client.show_server(self.server_id)
         self.assertEqual(server['status'], 'ACTIVE')
         # Locked server is not allowed to be stopped by non-admin user
