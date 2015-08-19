@@ -165,7 +165,7 @@ class VolumeVerifyStress(stressaction.StressAction):
         if not self.new_server:
             self.new_server_ops()
 
-    # now we just test is number of partition increased or decrised
+    # now we just test that the number of partitions has increased or decreased
     def part_wait(self, num_match):
         def _part_state():
             self.partitions = self.remote_client.get_partitions().split('\n')
@@ -191,8 +191,8 @@ class VolumeVerifyStress(stressaction.StressAction):
         self.logger.info("attach volume (%s) to vm %s" %
                          (self.volume['id'], self.server_id))
         servers_client.attach_volume(self.server_id,
-                                     self.volume['id'],
-                                     self.part_name)
+                                     volumeId=self.volume['id'],
+                                     device=self.part_name)
         self.manager.volumes_client.wait_for_volume_status(self.volume['id'],
                                                            'in-use')
         if self.enable_ssh_verify:
@@ -205,7 +205,7 @@ class VolumeVerifyStress(stressaction.StressAction):
         self.manager.volumes_client.wait_for_volume_status(self.volume['id'],
                                                            'available')
         if self.enable_ssh_verify:
-            self.logger.info("Scanning for block device disapperance on %s"
+            self.logger.info("Scanning for block device disappearance on %s"
                              % self.server_id)
             self.part_wait(self.detach_match_count)
         if self.new_volume:
