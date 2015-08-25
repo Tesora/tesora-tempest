@@ -96,10 +96,11 @@ class ScenarioTest(tempest.test.BaseTestCase):
 
     def addCleanup_with_wait(self, waiter_callable, thing_id, thing_id_param,
                              cleanup_callable, cleanup_args=None,
-                             cleanup_kwargs=None):
+                             cleanup_kwargs=None, waiter_client=None):
         """Adds wait for async resource deletion at the end of cleanups
 
         @param waiter_callable: callable to wait for the resource to delete
+            with the following waiter_client if specified.
         @param thing_id: the id of the resource to be cleaned-up
         @param thing_id_param: the name of the id param in the waiter
         @param cleanup_callable: method to load pass to self.addCleanup with
@@ -115,6 +116,8 @@ class ScenarioTest(tempest.test.BaseTestCase):
             'waiter_callable': waiter_callable,
             thing_id_param: thing_id
         }
+        if waiter_client:
+            wait_dict['client'] = waiter_client
         self.cleanup_waits.append(wait_dict)
 
     def _wait_for_cleanups(self):
@@ -142,7 +145,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         # We don't need to create a keypair by pubkey in scenario
         body = client.create_keypair(name=name)
         self.addCleanup(client.delete_keypair, name)
-        return body
+        return body['keypair']
 
     def create_server(self, name=None, image=None, flavor=None,
                       wait_on_boot=True, wait_on_delete=True,
@@ -172,13 +175,15 @@ class ScenarioTest(tempest.test.BaseTestCase):
         server = self.servers_client.create_server(name, image, flavor,
                                                    **create_kwargs)
         if wait_on_delete:
-            self.addCleanup(self.servers_client.wait_for_server_termination,
+            self.addCleanup(waiters.wait_for_server_termination,
+                            self.servers_client,
                             server['id'])
         self.addCleanup_with_wait(
-            waiter_callable=self.servers_client.wait_for_server_termination,
+            waiter_callable=waiters.wait_for_server_termination,
             thing_id=server['id'], thing_id_param='server_id',
             cleanup_callable=self.delete_wrapper,
-            cleanup_args=[self.servers_client.delete_server, server['id']])
+            cleanup_args=[self.servers_client.delete_server, server['id']],
+            waiter_client=self.servers_client)
         if wait_on_boot:
             waiters.wait_for_server_status(self.servers_client,
                                            server_id=server['id'],
@@ -221,7 +226,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         _client = self.security_groups_client
         _client_rules = self.security_group_rules_client
         if secgroup_id is None:
-            sgs = _client.list_security_groups()
+            sgs = _client.list_security_groups()['security_groups']
             for sg in sgs:
                 if sg['name'] == 'default':
                     secgroup_id = sg['id']
@@ -261,7 +266,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         sg_name = data_utils.rand_name(self.__class__.__name__)
         sg_desc = sg_name + " description"
         secgroup = self.security_groups_client.create_security_group(
-            name=sg_name, description=sg_desc)
+            name=sg_name, description=sg_desc)['security_group']
         self.assertEqual(secgroup['name'], sg_name)
         self.assertEqual(secgroup['description'], sg_desc)
         self.addCleanup(self.delete_wrapper,
@@ -444,9 +449,10 @@ class ScenarioTest(tempest.test.BaseTestCase):
 
         LOG.debug("Rebuilding server (id: %s, image: %s, preserve eph: %s)",
                   server_id, image, preserve_ephemeral)
-        self.servers_client.rebuild(server_id=server_id, image_ref=image,
-                                    preserve_ephemeral=preserve_ephemeral,
-                                    **rebuild_kwargs)
+        self.servers_client.rebuild_server(
+            server_id=server_id, image_ref=image,
+            preserve_ephemeral=preserve_ephemeral,
+            **rebuild_kwargs)
         if wait:
             waiters.wait_for_server_status(self.servers_client,
                                            server_id, 'ACTIVE')
@@ -516,7 +522,8 @@ class ScenarioTest(tempest.test.BaseTestCase):
         Nova clients
         """
 
-        floating_ip = self.floating_ips_client.create_floating_ip(pool_name)
+        floating_ip = (self.floating_ips_client.create_floating_ip(pool_name)
+                       ['floating_ip'])
         self.addCleanup(self.delete_wrapper,
                         self.floating_ips_client.delete_floating_ip,
                         floating_ip['id'])
@@ -1281,7 +1288,7 @@ class EncryptionScenarioTest(ScenarioTest):
         randomized_name = data_utils.rand_name('scenario-type-' + name)
         LOG.debug("Creating a volume type: %s", randomized_name)
         body = client.create_volume_type(
-            randomized_name)
+            randomized_name)['volume_type']
         self.assertIn('id', body)
         self.addCleanup(client.delete_volume_type, body['id'])
         return body
@@ -1297,7 +1304,7 @@ class EncryptionScenarioTest(ScenarioTest):
         LOG.debug("Creating an encryption type for volume type: %s", type_id)
         client.create_encryption_type(
             type_id, provider=provider, key_size=key_size, cipher=cipher,
-            control_location=control_location)
+            control_location=control_location)['encryption']
 
 
 class SwiftScenarioTest(ScenarioTest):

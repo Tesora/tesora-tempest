@@ -220,7 +220,7 @@ class StackService(BaseService):
 
     def list(self):
         client = self.client
-        stacks = client.list_stacks()
+        stacks = client.list_stacks()['stacks']
         LOG.debug("List count, %s Stacks" % len(stacks))
         return stacks
 
@@ -245,7 +245,7 @@ class KeyPairService(BaseService):
 
     def list(self):
         client = self.client
-        keypairs = client.list_keypairs()
+        keypairs = client.list_keypairs()['keypairs']
         LOG.debug("List count, %s Keypairs" % len(keypairs))
         return keypairs
 
@@ -271,7 +271,7 @@ class SecurityGroupService(BaseService):
 
     def list(self):
         client = self.client
-        secgrps = client.list_security_groups()
+        secgrps = client.list_security_groups()['security_groups']
         secgrp_del = [grp for grp in secgrps if grp['name'] != 'default']
         LOG.debug("List count, %s Security Groups" % len(secgrp_del))
         return secgrp_del
@@ -297,7 +297,7 @@ class FloatingIpService(BaseService):
 
     def list(self):
         client = self.client
-        floating_ips = client.list_floating_ips()
+        floating_ips = client.list_floating_ips()['floating_ips']
         LOG.debug("List count, %s Floating IPs" % len(floating_ips))
         return floating_ips
 
@@ -889,7 +889,7 @@ class TenantService(IdentityService):
 
     def list(self):
         client = self.client
-        tenants = client.list_tenants()
+        tenants = client.list_tenants()['tenants']
         if not self.is_save_state:
             tenants = [tenant for tenant in tenants if (tenant['id']
                        not in self.saved_state_json['tenants'].keys()

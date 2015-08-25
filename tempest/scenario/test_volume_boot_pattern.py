@@ -69,7 +69,7 @@ class TestVolumeBootPattern(manager.ScenarioTest):
         snap = self.snapshots_client.create_snapshot(
             volume_id=vol_id,
             force=True,
-            display_name=snap_name)
+            display_name=snap_name)['snapshot']
         self.addCleanup(
             self.snapshots_client.wait_for_resource_deletion, snap['id'])
         self.addCleanup(self.snapshots_client.delete_snapshot, snap['id'])
@@ -98,7 +98,8 @@ class TestVolumeBootPattern(manager.ScenarioTest):
 
     def _ssh_to_server(self, server, keypair):
         if CONF.compute.use_floatingip_for_ssh:
-            floating_ip = self.floating_ips_client.create_floating_ip()
+            floating_ip = (self.floating_ips_client.create_floating_ip()
+                           ['floating_ip'])
             self.addCleanup(self.delete_wrapper,
                             self.floating_ips_client.delete_floating_ip,
                             floating_ip['id'])
@@ -122,7 +123,7 @@ class TestVolumeBootPattern(manager.ScenarioTest):
 
     def _delete_server(self, server):
         self.servers_client.delete_server(server['id'])
-        self.servers_client.wait_for_server_termination(server['id'])
+        waiters.wait_for_server_termination(self.servers_client, server['id'])
 
     def _check_content_of_written_file(self, ssh_client, expected):
         actual = self._get_content(ssh_client)

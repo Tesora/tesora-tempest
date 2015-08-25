@@ -14,15 +14,11 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import time
-
 from oslo_serialization import jsonutils as json
 from six.moves.urllib import parse as urllib
-from tempest_lib import exceptions as lib_exc
 
 from tempest.api_schema.response.compute.v2_1 import servers as schema
 from tempest.common import service_client
-from tempest import exceptions
 
 
 class ServersClient(service_client.ServiceClient):
@@ -165,24 +161,6 @@ class ServersClient(service_client.ServiceClient):
         self.validate_response(_schema, resp, body)
         return service_client.ResponseBody(resp, body)
 
-    def wait_for_server_termination(self, server_id, ignore_error=False):
-        """Waits for server to reach termination."""
-        start_time = int(time.time())
-        while True:
-            try:
-                body = self.show_server(server_id)
-            except lib_exc.NotFound:
-                return
-
-            server_status = body['status']
-            if server_status == 'ERROR' and not ignore_error:
-                raise exceptions.BuildErrorException(server_id=server_id)
-
-            if int(time.time()) - start_time >= self.build_timeout:
-                raise exceptions.TimeoutException
-
-            time.sleep(self.build_interval)
-
     def list_addresses(self, server_id):
         """Lists all addresses for a server."""
         resp, body = self.get("servers/%s/ips" % server_id)
@@ -243,16 +221,19 @@ class ServersClient(service_client.ServiceClient):
                                resp, body)
         return service_client.ResponseBody(resp, body)
 
-    def reboot(self, server_id, reboot_type):
+    def reboot_server(self, server_id, reboot_type):
         """Reboots a server."""
         return self.action(server_id, 'reboot', None, type=reboot_type)
 
-    def rebuild(self, server_id, image_ref, **kwargs):
-        """Rebuilds a server with a new image."""
+    def rebuild_server(self, server_id, image_ref, **kwargs):
+        """Rebuilds a server with a new image.
+        Most parameters except the following are passed to the API without
+        any changes.
+        :param disk_config: The name is changed to OS-DCF:diskConfig
+        """
         kwargs['imageRef'] = image_ref
         if 'disk_config' in kwargs:
-            kwargs['OS-DCF:diskConfig'] = kwargs['disk_config']
-            del kwargs['disk_config']
+            kwargs['OS-DCF:diskConfig'] = kwargs.pop('disk_config')
         if self.enable_instance_password:
             rebuild_schema = schema.rebuild_server_with_admin_pass
         else:
@@ -260,12 +241,15 @@ class ServersClient(service_client.ServiceClient):
         return self.action(server_id, 'rebuild', 'server',
                            rebuild_schema, **kwargs)
 
-    def resize(self, server_id, flavor_ref, **kwargs):
-        """Changes the flavor of a server."""
+    def resize_server(self, server_id, flavor_ref, **kwargs):
+        """Changes the flavor of a server.
+        Most parameters except the following are passed to the API without
+        any changes.
+        :param disk_config: The name is changed to OS-DCF:diskConfig
+        """
         kwargs['flavorRef'] = flavor_ref
         if 'disk_config' in kwargs:
-            kwargs['OS-DCF:diskConfig'] = kwargs['disk_config']
-            del kwargs['disk_config']
+            kwargs['OS-DCF:diskConfig'] = kwargs.pop('disk_config')
         return self.action(server_id, 'resize', None, **kwargs)
 
     def confirm_resize(self, server_id, **kwargs):
