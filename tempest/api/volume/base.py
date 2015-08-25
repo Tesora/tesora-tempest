@@ -122,8 +122,8 @@ class BaseVolumeTest(tempest.test.BaseTestCase):
     @classmethod
     def create_snapshot(cls, volume_id=1, **kwargs):
         """Wrapper utility that returns a test snapshot."""
-        snapshot = cls.snapshots_client.create_snapshot(volume_id,
-                                                        **kwargs)
+        snapshot = cls.snapshots_client.create_snapshot(
+            volume_id, **kwargs)['snapshot']
         cls.snapshots.append(snapshot)
         cls.snapshots_client.wait_for_snapshot_status(snapshot['id'],
                                                       'available')
@@ -217,7 +217,7 @@ class BaseVolumeAdminTest(BaseVolumeTest):
         name = name or data_utils.rand_name(cls.__name__ + '-QoS')
         consumer = consumer or 'front-end'
         qos_specs = cls.volume_qos_client.create_qos(name, consumer,
-                                                     **kwargs)
+                                                     **kwargs)['qos_specs']
         cls.qos_specs.append(qos_specs['id'])
         return qos_specs
 

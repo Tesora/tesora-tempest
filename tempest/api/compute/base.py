@@ -129,7 +129,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
 
         for server in cls.servers:
             try:
-                cls.servers_client.wait_for_server_termination(server['id'])
+                waiters.wait_for_server_termination(cls.servers_client,
+                                                    server['id'])
             except Exception:
                 LOG.exception('Waiting for deletion of server %s failed'
                               % server['id'])
@@ -150,7 +151,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
             except Exception as exc:
                 LOG.exception(exc)
                 cls.servers_client.delete_server(cls.server_id)
-                cls.servers_client.wait_for_server_termination(cls.server_id)
+                waiters.wait_for_server_termination(cls.servers_client,
+                                                    cls.server_id)
                 cls.server_id = None
                 raise
 
@@ -221,9 +223,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
             name = data_utils.rand_name(cls.__name__ + "-securitygroup")
         if description is None:
             description = data_utils.rand_name('description')
-        body = \
-            cls.security_groups_client.create_security_group(
-                name=name, description=description)
+        body = cls.security_groups_client.create_security_group(
+            name=name, description=description)['security_group']
         cls.security_groups.append(body)
 
         return body
@@ -300,7 +301,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
         if server_id:
             try:
                 cls.servers_client.delete_server(server_id)
-                cls.servers_client.wait_for_server_termination(server_id)
+                waiters.wait_for_server_termination(cls.servers_client,
+                                                    server_id)
             except Exception:
                 LOG.exception('Failed to delete server %s' % server_id)
 
@@ -316,7 +318,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
         """Deletes an existing server and waits for it to be gone."""
         try:
             cls.servers_client.delete_server(server_id)
-            cls.servers_client.wait_for_server_termination(server_id)
+            waiters.wait_for_server_termination(cls.servers_client,
+                                                server_id)
         except Exception:
             LOG.exception('Failed to delete server %s' % server_id)
 

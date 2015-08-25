@@ -38,7 +38,8 @@ class EndpointsNegativeTestJSON(base.BaseIdentityV3AdminTest):
         s_description = data_utils.rand_name('description')
         cls.service_data = (
             cls.service_client.create_service(s_name, s_type,
-                                              description=s_description))
+                                              description=s_description)
+            ['service'])
         cls.service_id = cls.service_data['id']
         cls.service_ids.append(cls.service_id)
 
@@ -78,7 +79,8 @@ class EndpointsNegativeTestJSON(base.BaseIdentityV3AdminTest):
         interface1 = 'public'
         endpoint_for_update = (
             self.client.create_endpoint(self.service_id, interface1,
-                                        url1, region=region1, enabled=True))
+                                        url1, region=region1,
+                                        enabled=True))['endpoint']
         self.addCleanup(self.client.delete_endpoint, endpoint_for_update['id'])
 
         self.assertRaises(lib_exc.BadRequest, self.client.update_endpoint,

@@ -119,6 +119,7 @@ from tempest_lib import auth
 from tempest_lib import exceptions as lib_exc
 import yaml
 
+from tempest.common import waiters
 from tempest import config
 from tempest.services.compute.json import flavors_client
 from tempest.services.compute.json import floating_ips_client
@@ -273,7 +274,7 @@ def create_tenants(tenants):
     Don't create the tenants if they already exist.
     """
     admin = keystone_admin()
-    body = admin.identity.list_tenants()
+    body = admin.identity.list_tenants()['tenants']
     existing = [x['name'] for x in body]
     for tenant in tenants:
         if tenant not in existing:
@@ -877,7 +878,7 @@ def create_servers(servers):
         if CONF.compute.use_floatingip_for_ssh:
             floating_ip_pool = server.get('floating_ip_pool')
             floating_ip = client.floating_ips.create_floating_ip(
-                pool_name=floating_ip_pool)
+                pool_name=floating_ip_pool)['floating_ip']
             client.floating_ips.associate_floating_ip_to_server(
                 floating_ip['ip'], server_id)
 
@@ -896,8 +897,8 @@ def destroy_servers(servers):
 
         # TODO(EmilienM): disassociate floating IP from server and release it.
         client.servers.delete_server(response['id'])
-        client.servers.wait_for_server_termination(response['id'],
-                                                   ignore_error=True)
+        waiters.wait_for_server_termination(client.servers, response['id'],
+                                            ignore_error=True)
 
 
 def create_secgroups(secgroups):
@@ -908,14 +909,15 @@ def create_secgroups(secgroups):
         # only create a security group if the name isn't here
         # i.e. a security group may be used by another server
         # only create a router if the name isn't here
-        body = client.secgroups.list_security_groups()
+        body = client.secgroups.list_security_groups()['security_groups']
         if any(item['name'] == secgroup['name'] for item in body):
             LOG.warning("Security group '%s' already exists" %
                         secgroup['name'])
             continue
 
         body = client.secgroups.create_security_group(
-            name=secgroup['name'], description=secgroup['description'])
+            name=secgroup['name'],
+            description=secgroup['description'])['security_group']
         secgroup_id = body['id']
         # for each security group, create the rules
         for rule in secgroup['rules']:
