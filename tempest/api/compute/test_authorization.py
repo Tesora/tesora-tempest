@@ -76,7 +76,7 @@ class AuthorizationTestJSON(base.BaseV2ComputeTest):
         body = cls.glance_client.update_image(image_id,
                                               data=image_file)['image']
         cls.glance_client.wait_for_image_status(image_id, 'active')
-        cls.image = cls.images_client.show_image(image_id)
+        cls.image = cls.images_client.show_image(image_id)['image']
 
         cls.keypairname = data_utils.rand_name('keypair')
         cls.keypairs_client.create_keypair(name=cls.keypairname)
@@ -92,7 +92,7 @@ class AuthorizationTestJSON(base.BaseV2ComputeTest):
         to_port = 22
         cls.rule = cls.rule_client.create_security_group_rule(
             parent_group_id=parent_group_id, ip_protocol=ip_protocol,
-            from_port=from_port, to_port=to_port)
+            from_port=from_port, to_port=to_port)['security_group_rule']
 
     @classmethod
     def resource_cleanup(cls):

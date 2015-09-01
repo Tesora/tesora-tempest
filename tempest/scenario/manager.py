@@ -18,6 +18,7 @@ import subprocess
 
 import netaddr
 from oslo_log import log
+from oslo_serialization import jsonutils as json
 import six
 from tempest_lib.common.utils import misc as misc_utils
 from tempest_lib import exceptions as lib_exc
@@ -254,7 +255,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         rules = list()
         for ruleset in rulesets:
             sg_rule = _client_rules.create_security_group_rule(
-                parent_group_id=secgroup_id, **ruleset)
+                parent_group_id=secgroup_id, **ruleset)['security_group_rule']
             self.addCleanup(self.delete_wrapper,
                             _client_rules.delete_security_group_rule,
                             sg_rule['id'])
@@ -416,6 +417,21 @@ class ScenarioTest(tempest.test.BaseTestCase):
             cleanup_callable=self.delete_wrapper,
             cleanup_args=[_image_client.delete_image, image_id])
         snapshot_image = _image_client.get_image_meta(image_id)
+
+        bdm = snapshot_image.get('properties', {}).get('block_device_mapping')
+        if bdm:
+            bdm = json.loads(bdm)
+            if bdm and 'snapshot_id' in bdm[0]:
+                snapshot_id = bdm[0]['snapshot_id']
+                self.addCleanup(
+                    self.snapshots_client.wait_for_resource_deletion,
+                    snapshot_id)
+                self.addCleanup(
+                    self.delete_wrapper, self.snapshots_client.delete_snapshot,
+                    snapshot_id)
+                self.snapshots_client.wait_for_snapshot_status(snapshot_id,
+                                                               'available')
+
         image_name = snapshot_image['name']
         self.assertEqual(name, image_name)
         LOG.debug("Created snapshot image %s for server %s",
@@ -593,6 +609,12 @@ class NetworkScenarioTest(ScenarioTest):
         ports_list = self.admin_manager.network_client.list_ports(
             *args, **kwargs)
         return ports_list['ports']
+
+    def _list_agents(self, *args, **kwargs):
+        """List agents using admin creds """
+        agents_list = self.admin_manager.network_client.list_agents(
+            *args, **kwargs)
+        return agents_list['agents']
 
     def _create_subnet(self, network, client=None, namestart='subnet-smoke',
                        **kwargs):
@@ -1094,6 +1116,7 @@ class NetworkScenarioTest(ScenarioTest):
                 ports.append({'port': port.id})
             if ports:
                 create_kwargs['networks'] = ports
+            self.ports = ports
 
         return super(NetworkScenarioTest, self).create_server(
             name=name, image=image, flavor=flavor,

@@ -77,7 +77,7 @@ AuthGroup = [
     cfg.BoolOpt('create_isolated_networks',
                 default=True,
                 help="If allow_tenant_isolation is set to True and Neutron is "
-                     "enabled Tempest will try to create a useable network, "
+                     "enabled Tempest will try to create a usable network, "
                      "subnet, and router when needed for each tenant it  "
                      "creates. However in some neutron configurations, like "
                      "with VLAN provider networks, this doesn't work. So if "
@@ -702,6 +702,9 @@ VolumeFeaturesGroup = [
     cfg.BoolOpt('snapshot',
                 default=True,
                 help='Runs Cinder volume snapshot test'),
+    cfg.BoolOpt('clone',
+                default=True,
+                help='Runs Cinder volume clone test'),
     cfg.ListOpt('api_extensions',
                 default=['all'],
                 help='A list of enabled volume extensions with a special '
@@ -881,7 +884,8 @@ DashboardGroup = [
                help="Where the dashboard can be found"),
     cfg.StrOpt('login_url',
                default='http://localhost/auth/login/',
-               help="Login page for the dashboard"),
+               help="Login page for the dashboard",
+               deprecated_for_removal=True),
 ]
 
 
