@@ -195,7 +195,7 @@ class ServerGroupService(ServerService):
 
     def list(self):
         client = self.client
-        sgs = client.list_server_groups()
+        sgs = client.list_server_groups()['server_groups']
         LOG.debug("List count, %s Server Groups" % len(sgs))
         return sgs
 
@@ -372,7 +372,7 @@ class NovaQuotaService(BaseService):
 
     def dry_run(self):
         client = self.limits_client
-        quotas = client.show_limits()
+        quotas = client.show_limits()['limits']
         self.data['compute_quotas'] = quotas['absolute']
 
 
@@ -731,7 +731,7 @@ class FlavorService(BaseService):
 
     def list(self):
         client = self.client
-        flavors = client.list_flavors({"is_public": None})
+        flavors = client.list_flavors({"is_public": None})['flavors']
         if not self.is_save_state:
             # recreate list removing saved flavors
             flavors = [flavor for flavor in flavors if flavor['id']
@@ -770,7 +770,7 @@ class ImageService(BaseService):
 
     def list(self):
         client = self.client
-        images = client.list_images({"all_tenants": True})
+        images = client.list_images({"all_tenants": True})['images']
         if not self.is_save_state:
             images = [image for image in images if image['id']
                       not in self.saved_state_json['images'].keys()]

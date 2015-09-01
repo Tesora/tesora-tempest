@@ -43,6 +43,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
     @classmethod
     def skip_checks(cls):
         super(BaseComputeTest, cls).skip_checks()
+        if not CONF.service_available.nova:
+            raise cls.skipException("Nova is not available")
         if cls._api_version != 2:
             msg = ("Unexpected API version is specified (%s)" %
                    cls._api_version)
@@ -235,7 +237,8 @@ class BaseComputeTest(tempest.test.BaseTestCase):
             name = data_utils.rand_name(cls.__name__ + "-Server-Group")
         if policy is None:
             policy = ['affinity']
-        body = cls.server_groups_client.create_server_group(name, policy)
+        body = (cls.server_groups_client.create_server_group(name, policy)
+                ['server_group'])
         cls.server_groups.append(body['id'])
         return body
 
@@ -287,7 +290,7 @@ class BaseComputeTest(tempest.test.BaseTestCase):
         if 'wait_until' in kwargs:
             waiters.wait_for_image_status(cls.images_client,
                                           image_id, kwargs['wait_until'])
-            image = cls.images_client.show_image(image_id)
+            image = cls.images_client.show_image(image_id)['image']
 
             if kwargs['wait_until'] == 'ACTIVE':
                 if kwargs.get('wait_for_server', True):

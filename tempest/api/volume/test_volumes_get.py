@@ -13,6 +13,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import testtools
 from testtools import matchers
 
 from tempest.api.volume import base
@@ -131,13 +132,15 @@ class VolumesV2GetTest(base.BaseVolumeTest):
     @test.idempotent_id('54a01030-c7fc-447c-86ee-c1182beae638')
     @test.services('image')
     def test_volume_create_get_update_delete_from_image(self):
-        image = self.images_client.show_image(CONF.compute.image_ref)
+        image = self.images_client.show_image(CONF.compute.image_ref)['image']
         min_disk = image.get('minDisk')
         disk_size = max(min_disk, CONF.volume.volume_size)
         self._volume_create_get_update_delete(
             imageRef=CONF.compute.image_ref, size=disk_size)
 
     @test.idempotent_id('3f591b4a-7dc6-444c-bd51-77469506b3a1')
+    @testtools.skipUnless(CONF.volume_feature_enabled.clone,
+                          'Cinder volume clones are disabled')
     def test_volume_create_get_update_delete_as_clone(self):
         origin = self.create_volume()
         self._volume_create_get_update_delete(source_volid=origin['id'])

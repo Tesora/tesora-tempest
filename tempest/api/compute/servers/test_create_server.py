@@ -117,7 +117,7 @@ class ServersTestJSON(base.BaseV2ComputeTest):
     def test_verify_created_server_vcpus(self):
         # Verify that the number of vcpus reported by the instance matches
         # the amount stated by the flavor
-        flavor = self.flavors_client.show_flavor(self.flavor_ref)
+        flavor = self.flavors_client.show_flavor(self.flavor_ref)['flavor']
         linux_client = remote_client.RemoteClient(
             self.get_server_ip(self.server),
             self.ssh_user,
@@ -143,7 +143,7 @@ class ServersTestJSON(base.BaseV2ComputeTest):
         name = data_utils.rand_name('server_group')
         policies = ['affinity']
         body = self.server_groups_client.create_server_group(
-            name=name, policies=policies)
+            name=name, policies=policies)['server_group']
         group_id = body['id']
         self.addCleanup(self.server_groups_client.delete_server_group,
                         group_id)
@@ -153,7 +153,8 @@ class ServersTestJSON(base.BaseV2ComputeTest):
                                          wait_until='ACTIVE')
 
         # Check a server is in the group
-        server_group = self.server_groups_client.get_server_group(group_id)
+        server_group = (self.server_groups_client.get_server_group(group_id)
+                        ['server_group'])
         self.assertIn(server['id'], server_group['members'])
 
     @test.idempotent_id('0578d144-ed74-43f8-8e57-ab10dbf9b3c2')
@@ -275,7 +276,7 @@ class ServersWithSpecificFlavorTestJSON(base.BaseV2ComputeAdminTest):
                       create_flavor(name=flavor_with_eph_disk_name,
                                     ram=ram, vcpus=vcpus, disk=disk,
                                     id=flavor_with_eph_disk_id,
-                                    ephemeral=1))
+                                    ephemeral=1))['flavor']
             self.addCleanup(flavor_clean_up, flavor['id'])
 
             return flavor['id']
@@ -292,7 +293,7 @@ class ServersWithSpecificFlavorTestJSON(base.BaseV2ComputeAdminTest):
             flavor = (self.flavor_client.
                       create_flavor(name=flavor_no_eph_disk_name,
                                     ram=ram, vcpus=vcpus, disk=disk,
-                                    id=flavor_no_eph_disk_id))
+                                    id=flavor_no_eph_disk_id))['flavor']
             self.addCleanup(flavor_clean_up, flavor['id'])
 
             return flavor['id']
@@ -306,11 +307,11 @@ class ServersWithSpecificFlavorTestJSON(base.BaseV2ComputeAdminTest):
 
         admin_pass = self.image_ssh_password
 
-        server_no_eph_disk = (self.create_test_server(
-                              validatable=True,
-                              wait_until='ACTIVE',
-                              adminPass=admin_pass,
-                              flavor=flavor_no_eph_disk_id))
+        server_no_eph_disk = self.create_test_server(
+            validatable=True,
+            wait_until='ACTIVE',
+            adminPass=admin_pass,
+            flavor=flavor_no_eph_disk_id)
 
         # Get partition number of server without extra specs.
         server_no_eph_disk = self.client.show_server(
@@ -325,11 +326,11 @@ class ServersWithSpecificFlavorTestJSON(base.BaseV2ComputeAdminTest):
         # Explicit server deletion necessary for Juno compatibility
         self.client.delete_server(server_no_eph_disk['id'])
 
-        server_with_eph_disk = (self.create_test_server(
-                                validatable=True,
-                                wait_until='ACTIVE',
-                                adminPass=admin_pass,
-                                flavor=flavor_with_eph_disk_id))
+        server_with_eph_disk = self.create_test_server(
+            validatable=True,
+            wait_until='ACTIVE',
+            adminPass=admin_pass,
+            flavor=flavor_with_eph_disk_id)
 
         server_with_eph_disk = self.client.show_server(
             server_with_eph_disk['id'])
