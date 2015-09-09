@@ -180,12 +180,13 @@ class VolumesV2NegativeTest(base.BaseVolumeTest):
     @test.services('compute')
     def test_attach_volumes_with_nonexistent_volume_id(self):
         srv_name = data_utils.rand_name('Instance')
-        server = self.create_server(srv_name)
+        server = self.create_server(
+            name=srv_name,
+            wait_until='ACTIVE')
         self.addCleanup(waiters.wait_for_server_termination,
                         self.servers_client, server['id'])
         self.addCleanup(self.servers_client.delete_server, server['id'])
-        waiters.wait_for_server_status(self.servers_client, server['id'],
-                                       'ACTIVE')
+
         self.assertRaises(lib_exc.NotFound,
                           self.client.attach_volume,
                           str(uuid.uuid4()),
@@ -270,7 +271,7 @@ class VolumesV2NegativeTest(base.BaseVolumeTest):
     def test_list_volumes_with_nonexistent_name(self):
         v_name = data_utils.rand_name('Volume')
         params = {self.name_field: v_name}
-        fetched_volume = self.client.list_volumes(params=params)
+        fetched_volume = self.client.list_volumes(params=params)['volumes']
         self.assertEqual(0, len(fetched_volume))
 
     @test.attr(type=['negative'])
@@ -279,14 +280,14 @@ class VolumesV2NegativeTest(base.BaseVolumeTest):
         v_name = data_utils.rand_name('Volume')
         params = {self.name_field: v_name}
         fetched_volume = \
-            self.client.list_volumes(detail=True, params=params)
+            self.client.list_volumes(detail=True, params=params)['volumes']
         self.assertEqual(0, len(fetched_volume))
 
     @test.attr(type=['negative'])
     @test.idempotent_id('143b279b-7522-466b-81be-34a87d564a7c')
     def test_list_volumes_with_invalid_status(self):
         params = {'status': 'null'}
-        fetched_volume = self.client.list_volumes(params=params)
+        fetched_volume = self.client.list_volumes(params=params)['volumes']
         self.assertEqual(0, len(fetched_volume))
 
     @test.attr(type=['negative'])
@@ -294,7 +295,7 @@ class VolumesV2NegativeTest(base.BaseVolumeTest):
     def test_list_volumes_detail_with_invalid_status(self):
         params = {'status': 'null'}
         fetched_volume = \
-            self.client.list_volumes(detail=True, params=params)
+            self.client.list_volumes(detail=True, params=params)['volumes']
         self.assertEqual(0, len(fetched_volume))
 
 
