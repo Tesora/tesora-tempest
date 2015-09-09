@@ -322,7 +322,7 @@ class VolumeService(BaseService):
 
     def list(self):
         client = self.client
-        vols = client.list_volumes()
+        vols = client.list_volumes()['volumes']
         LOG.debug("List count, %s Volumes" % len(vols))
         return vols
 
@@ -353,7 +353,7 @@ class VolumeQuotaService(BaseService):
             LOG.exception("Delete Volume Quotas exception.")
 
     def dry_run(self):
-        quotas = self.client.show_quota_usage(self.tenant_id)
+        quotas = self.client.show_quota_usage(self.tenant_id)['quota_set']
         self.data['volume_quotas'] = quotas
 
 
@@ -930,7 +930,7 @@ class DomainService(BaseService):
 
     def list(self):
         client = self.client
-        domains = client.list_domains()
+        domains = client.list_domains()['domains']
         if not self.is_save_state:
             domains = [domain for domain in domains if domain['id']
                        not in self.saved_state_json['domains'].keys()]

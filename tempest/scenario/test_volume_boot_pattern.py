@@ -83,7 +83,13 @@ class TestVolumeBootPattern(manager.ScenarioTest):
             self.snapshots_client.wait_for_resource_deletion, snap['id'])
         self.addCleanup(self.snapshots_client.delete_snapshot, snap['id'])
         self.snapshots_client.wait_for_snapshot_status(snap['id'], 'available')
-        self.assertEqual(snap_name, snap['display_name'])
+
+        # NOTE(e0ne): Cinder API v2 uses name instead of display_name
+        if 'display_name' in snap:
+            self.assertEqual(snap_name, snap['display_name'])
+        else:
+            self.assertEqual(snap_name, snap['name'])
+
         return snap
 
     def _create_volume_from_snapshot(self, snap_id):
@@ -93,21 +99,14 @@ class TestVolumeBootPattern(manager.ScenarioTest):
     def _stop_instances(self, instances):
         # NOTE(gfidente): two loops so we do not wait for the status twice
         for i in instances:
-            self.servers_client.stop(i['id'])
+            self.servers_client.stop_server(i['id'])
         for i in instances:
             waiters.wait_for_server_status(self.servers_client,
                                            i['id'], 'SHUTOFF')
 
     def _ssh_to_server(self, server, keypair):
         if CONF.compute.use_floatingip_for_ssh:
-            floating_ip = (self.floating_ips_client.create_floating_ip()
-                           ['floating_ip'])
-            self.addCleanup(self.delete_wrapper,
-                            self.floating_ips_client.delete_floating_ip,
-                            floating_ip['id'])
-            self.floating_ips_client.associate_floating_ip_to_server(
-                floating_ip['ip'], server['id'])
-            ip = floating_ip['ip']
+            ip = self.create_floating_ip(server)['ip']
         else:
             ip = server
 

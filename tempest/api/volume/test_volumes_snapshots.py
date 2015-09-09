@@ -14,7 +14,6 @@ from oslo_log import log as logging
 
 from tempest.api.volume import base
 from tempest.common.utils import data_utils
-from tempest.common import waiters
 from tempest import config
 from tempest import test
 
@@ -68,10 +67,10 @@ class VolumesV2SnapshotTestJSON(base.BaseVolumeTest):
         # Create a snapshot when volume status is in-use
         # Create a test instance
         server_name = data_utils.rand_name('instance')
-        server = self.create_server(server_name)
+        server = self.create_server(
+            name=server_name,
+            wait_until='ACTIVE')
         self.addCleanup(self.servers_client.delete_server, server['id'])
-        waiters.wait_for_server_status(self.servers_client, server['id'],
-                                       'ACTIVE')
         mountpoint = '/dev/%s' % CONF.compute.volume_device_name
         self.servers_client.attach_volume(
             server['id'], volumeId=self.volume_origin['id'],
@@ -178,7 +177,7 @@ class VolumesV2SnapshotTestJSON(base.BaseVolumeTest):
         snapshot = self.create_snapshot(self.volume_origin['id'])
         # NOTE(gfidente): size is required also when passing snapshot_id
         volume = self.volumes_client.create_volume(
-            snapshot_id=snapshot['id'])
+            snapshot_id=snapshot['id'])['volume']
         self.volumes_client.wait_for_volume_status(volume['id'], 'available')
         self.volumes_client.delete_volume(volume['id'])
         self.volumes_client.wait_for_resource_deletion(volume['id'])

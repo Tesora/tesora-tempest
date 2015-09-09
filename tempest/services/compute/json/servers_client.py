@@ -97,35 +97,16 @@ class ServersClient(service_client.ServiceClient):
         self.validate_response(create_schema, resp, body)
         return service_client.ResponseBody(resp, body['server'])
 
-    def update_server(self, server_id, name=None, meta=None, accessIPv4=None,
-                      accessIPv6=None, disk_config=None):
+    def update_server(self, server_id, **kwargs):
+        """Updates the properties of an existing server.
+        Most parameters except the following are passed to the API without
+        any changes.
+        :param disk_config: The name is changed to OS-DCF:diskConfig
         """
-        Updates the properties of an existing server.
-        server_id: The id of an existing server.
-        name: The name of the server.
-        personality: A list of files to be injected into the server.
-        accessIPv4: The IPv4 access address for the server.
-        accessIPv6: The IPv6 access address for the server.
-        """
+        if kwargs.get('disk_config'):
+            kwargs['OS-DCF:diskConfig'] = kwargs.pop('disk_config')
 
-        post_body = {}
-
-        if meta is not None:
-            post_body['metadata'] = meta
-
-        if name is not None:
-            post_body['name'] = name
-
-        if accessIPv4 is not None:
-            post_body['accessIPv4'] = accessIPv4
-
-        if accessIPv6 is not None:
-            post_body['accessIPv6'] = accessIPv6
-
-        if disk_config is not None:
-            post_body['OS-DCF:diskConfig'] = disk_config
-
-        post_body = json.dumps({'server': post_body})
+        post_body = json.dumps({'server': kwargs})
         resp, body = self.put("servers/%s" % server_id, post_body)
         body = json.loads(body)
         self.validate_response(schema.update_server, resp, body)
@@ -252,13 +233,13 @@ class ServersClient(service_client.ServiceClient):
             kwargs['OS-DCF:diskConfig'] = kwargs.pop('disk_config')
         return self.action(server_id, 'resize', None, **kwargs)
 
-    def confirm_resize(self, server_id, **kwargs):
+    def confirm_resize_server(self, server_id, **kwargs):
         """Confirms the flavor change for a server."""
         return self.action(server_id, 'confirmResize',
                            None, schema.server_actions_confirm_resize,
                            **kwargs)
 
-    def revert_resize(self, server_id, **kwargs):
+    def revert_resize_server(self, server_id, **kwargs):
         """Reverts a server back to its original flavor."""
         return self.action(server_id, 'revertResize', None, **kwargs)
 
@@ -311,10 +292,10 @@ class ServersClient(service_client.ServiceClient):
                                resp, body)
         return service_client.ResponseBody(resp, body)
 
-    def stop(self, server_id, **kwargs):
+    def stop_server(self, server_id, **kwargs):
         return self.action(server_id, 'os-stop', None, **kwargs)
 
-    def start(self, server_id, **kwargs):
+    def start_server(self, server_id, **kwargs):
         return self.action(server_id, 'os-start', None, **kwargs)
 
     def attach_volume(self, server_id, **kwargs):
