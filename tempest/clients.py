@@ -16,8 +16,8 @@
 import copy
 
 from oslo_log import log as logging
-from tempest_lib.services.identity.v2.token_client import TokenClientJSON
-from tempest_lib.services.identity.v3.token_client import V3TokenClientJSON
+from tempest_lib.services.identity.v2.token_client import TokenClient
+from tempest_lib.services.identity.v3.token_client import V3TokenClient
 
 from tempest.common import cred_provider
 from tempest.common import negative_rest_client
@@ -59,7 +59,8 @@ from tempest.services.compute.json.keypairs_client import KeyPairsClient
 from tempest.services.compute.json.limits_client import LimitsClient
 from tempest.services.compute.json.migrations_client import \
     MigrationsClient
-from tempest.services.compute.json.networks_client import NetworksClient
+from tempest.services.compute.json.networks_client import NetworksClient \
+    as ComputeNetworksClient
 from tempest.services.compute.json.quota_classes_client import \
     QuotaClassesClient
 from tempest.services.compute.json.quotas_client import QuotasClient
@@ -73,6 +74,8 @@ from tempest.services.compute.json.server_groups_client import \
     ServerGroupsClient
 from tempest.services.compute.json.servers_client import ServersClient
 from tempest.services.compute.json.services_client import ServicesClient
+from tempest.services.compute.json.snapshots_extensions_client import \
+    SnapshotsExtensionsClient
 from tempest.services.compute.json.tenant_networks_client import \
     TenantNetworksClient
 from tempest.services.compute.json.tenant_usages_client import \
@@ -260,7 +263,8 @@ class Manager(manager.Manager):
         params.update(self.default_params)
 
         self.agents_client = AgentsClient(self.auth_provider, **params)
-        self.networks_client = NetworksClient(self.auth_provider, **params)
+        self.compute_networks_client = ComputeNetworksClient(
+            self.auth_provider, **params)
         self.migrations_client = MigrationsClient(self.auth_provider,
                                                   **params)
         self.security_group_default_rules_client = (
@@ -325,6 +329,8 @@ class Manager(manager.Manager):
             self.auth_provider, **params_volume)
         self.compute_versions_client = VersionsClient(self.auth_provider,
                                                       **params_volume)
+        self.snapshots_extensions_client = SnapshotsExtensionsClient(
+            self.auth_provider, **params_volume)
 
     def _set_database_clients(self):
         self.database_flavors_client = DatabaseFlavorsClient(
@@ -377,14 +383,14 @@ class Manager(manager.Manager):
         # API version is marked as enabled
         if CONF.identity_feature_enabled.api_v2:
             if CONF.identity.uri:
-                self.token_client = TokenClientJSON(
+                self.token_client = TokenClient(
                     CONF.identity.uri, **self.default_params)
             else:
                 msg = 'Identity v2 API enabled, but no identity.uri set'
                 raise exceptions.InvalidConfiguration(msg)
         if CONF.identity_feature_enabled.api_v3:
             if CONF.identity.uri_v3:
-                self.token_v3_client = V3TokenClientJSON(
+                self.token_v3_client = V3TokenClient(
                     CONF.identity.uri_v3, **self.default_params)
             else:
                 msg = 'Identity v3 API enabled, but no identity.uri_v3 set'

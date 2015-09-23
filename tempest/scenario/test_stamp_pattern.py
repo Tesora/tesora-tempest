@@ -106,7 +106,7 @@ class TestStampPattern(manager.ScenarioTest):
     def _attach_volume(self, server, volume):
         attached_volume = self.servers_client.attach_volume(
             server['id'], volumeId=volume['id'], device='/dev/%s'
-            % CONF.compute.volume_device_name)
+            % CONF.compute.volume_device_name)['volumeAttachment']
         self.assertEqual(volume['id'], attached_volume['id'])
         self._wait_for_volume_status(attached_volume, 'in-use')
 
@@ -150,7 +150,7 @@ class TestStampPattern(manager.ScenarioTest):
                           'Snapshotting is not available.')
     @tempest.test.services('compute', 'network', 'volume', 'image')
     def test_stamp_pattern(self):
-        # prepare for booting a instance
+        # prepare for booting an instance
         self._add_keypair()
         self.security_group = self._create_security_group()
 

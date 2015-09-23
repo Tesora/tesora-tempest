@@ -188,6 +188,12 @@ IdentityFeatureGroup = [
     cfg.BoolOpt('api_v3',
                 default=True,
                 help='Is the v3 identity API enabled'),
+    cfg.ListOpt('api_extensions',
+                default=['all'],
+                help="A list of enabled identity extensions with a special "
+                     "entry all which indicates every extension is enabled. "
+                     "Empty list indicates all extensions are disabled. "
+                     "To get the list of extensions run: 'keystone discover'")
 ]
 
 compute_group = cfg.OptGroup(name='compute',
@@ -607,6 +613,12 @@ ValidationGroup = [
                      ' validation resources to enable remote access',
                 deprecated_opts=[cfg.DeprecatedOpt('run_ssh',
                                                    group='compute')]),
+    cfg.BoolOpt('security_group',
+                default=True,
+                help='Enable/disable security groups.'),
+    cfg.BoolOpt('security_group_rules',
+                default=True,
+                help='Enable/disable security group rules.'),
     cfg.StrOpt('connect_method',
                default='floating',
                choices=['fixed', 'floating'],
@@ -1036,7 +1048,7 @@ ScenarioGroup = [
     # TODO(yfried): add support for dhcpcd
     cfg.StrOpt('dhcp_client',
                default='udhcpc',
-               choices=["udhcpc", "dhclient"],
+               choices=["udhcpc", "dhclient", ""],
                help='DHCP client used by images to renew DCHP lease. '
                     'If left empty, update operation will be skipped. '
                     'Supported clients: "udhcpc", "dhclient"')
@@ -1137,7 +1149,7 @@ baremetal_group = cfg.OptGroup(name='baremetal',
                                title='Baremetal provisioning service options',
                                help='When enabling baremetal tests, Nova '
                                     'must be configured to use the Ironic '
-                                    'driver. The following paremeters for the '
+                                    'driver. The following parameters for the '
                                     '[compute] section must be disabled: '
                                     'console_output, interface_attach, '
                                     'live_migration, pause, rescue, resize '

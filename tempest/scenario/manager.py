@@ -178,8 +178,9 @@ class ScenarioTest(tempest.test.BaseTestCase):
 
         LOG.debug("Creating a server (name: %s, image: %s, flavor: %s)",
                   name, image, flavor)
-        server = self.servers_client.create_server(name, image, flavor,
-                                                   **create_kwargs)
+        server = self.servers_client.create_server(name=name, imageRef=image,
+                                                   flavorRef=flavor,
+                                                   **create_kwargs)['server']
         if wait_on_delete:
             self.addCleanup(waiters.wait_for_server_termination,
                             self.servers_client,
@@ -197,7 +198,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         # The instance retrieved on creation is missing network
         # details, necessitating retrieval after it becomes active to
         # ensure correct details.
-        server = self.servers_client.show_server(server['id'])
+        server = self.servers_client.show_server(server['id'])['server']
         self.assertEqual(server['name'], name)
         return server
 
@@ -400,7 +401,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
             servers = servers['servers']
         for server in servers:
             console_output = self.servers_client.get_console_output(
-                server['id'], length=None).data
+                server['id'], length=None)['output']
             LOG.debug('Console output for %s\nbody=\n%s',
                       server['id'], console_output)
 
@@ -450,7 +451,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
     def nova_volume_attach(self):
         volume = self.servers_client.attach_volume(
             self.server['id'], volumeId=self.volume['id'], device='/dev/%s'
-            % CONF.compute.volume_device_name)
+            % CONF.compute.volume_device_name)['volumeAttachment']
         self.assertEqual(self.volume['id'], volume['id'])
         self.volumes_client.wait_for_volume_status(volume['id'], 'in-use')
         # Refresh the volume after the attachment
@@ -1073,7 +1074,10 @@ class NetworkScenarioTest(ScenarioTest):
 
     def create_server(self, name=None, image=None, flavor=None,
                       wait_on_boot=True, wait_on_delete=True,
-                      create_kwargs=None):
+                      network_client=None, create_kwargs=None):
+        if network_client is None:
+            network_client = self.network_client
+
         vnic_type = CONF.network.port_vnic_type
 
         # If vnic_type is configured create port for
@@ -1084,19 +1088,16 @@ class NetworkScenarioTest(ScenarioTest):
             create_port_body = {'binding:vnic_type': vnic_type,
                                 'namestart': 'port-smoke'}
             if create_kwargs:
-                net_client = create_kwargs.get("network_client",
-                                               self.network_client)
-
                 # Convert security group names to security group ids
                 # to pass to create_port
                 if create_kwargs.get('security_groups'):
-                    security_groups = net_client.list_security_groups().get(
-                        'security_groups')
+                    security_groups = network_client.list_security_groups(
+                        ).get('security_groups')
                     sec_dict = dict([(s['name'], s['id'])
                                     for s in security_groups])
 
-                    sec_groups_names = [s['name'] for s in create_kwargs[
-                        'security_groups']]
+                    sec_groups_names = [s['name'] for s in create_kwargs.get(
+                        'security_groups')]
                     security_groups_ids = [sec_dict[s]
                                            for s in sec_groups_names]
 
@@ -1104,15 +1105,14 @@ class NetworkScenarioTest(ScenarioTest):
                         create_port_body[
                             'security_groups'] = security_groups_ids
                 networks = create_kwargs.get('networks')
-            else:
-                net_client = self.network_client
+
             # If there are no networks passed to us we look up
             # for the tenant's private networks and create a port
             # if there is only one private network. The same behaviour
             # as we would expect when passing the call to the clients
             # with no networks
             if not networks:
-                networks = net_client.list_networks(filters={
+                networks = network_client.list_networks(filters={
                     'router:external': False})
                 self.assertEqual(1, len(networks),
                                  "There is more than one"
@@ -1120,7 +1120,7 @@ class NetworkScenarioTest(ScenarioTest):
             for net in networks:
                 net_id = net['uuid']
                 port = self._create_port(network_id=net_id,
-                                         client=net_client,
+                                         client=network_client,
                                          **create_port_body)
                 ports.append({'port': port.id})
             if ports:
@@ -1278,7 +1278,8 @@ class BaremetalScenarioTest(ScenarioTest):
         waiters.wait_for_server_status(self.servers_client,
                                        self.instance['id'], 'ACTIVE')
         self.node = self.get_node(instance_id=self.instance['id'])
-        self.instance = self.servers_client.show_server(self.instance['id'])
+        self.instance = (self.servers_client.show_server(self.instance['id'])
+                         ['server'])
 
     def terminate_instance(self):
         self.servers_client.delete_server(self.instance['id'])
@@ -1342,9 +1343,9 @@ class EncryptionScenarioTest(ScenarioTest):
             control_location=control_location)['encryption']
 
 
-class SwiftScenarioTest(ScenarioTest):
+class ObjectStorageScenarioTest(ScenarioTest):
     """
-    Provide harness to do Swift scenario tests.
+    Provide harness to do Object Storage scenario tests.
 
     Subclasses implement the tests that use the methods provided by this
     class.
@@ -1352,7 +1353,7 @@ class SwiftScenarioTest(ScenarioTest):
 
     @classmethod
     def skip_checks(cls):
-        super(SwiftScenarioTest, cls).skip_checks()
+        super(ObjectStorageScenarioTest, cls).skip_checks()
         if not CONF.service_available.swift:
             skip_msg = ("%s skipped as swift is not available" %
                         cls.__name__)
@@ -1361,13 +1362,13 @@ class SwiftScenarioTest(ScenarioTest):
     @classmethod
     def setup_credentials(cls):
         cls.set_network_resources()
-        super(SwiftScenarioTest, cls).setup_credentials()
+        super(ObjectStorageScenarioTest, cls).setup_credentials()
         operator_role = CONF.object_storage.operator_role
         cls.os_operator = cls.get_client_manager(roles=[operator_role])
 
     @classmethod
     def setup_clients(cls):
-        super(SwiftScenarioTest, cls).setup_clients()
+        super(ObjectStorageScenarioTest, cls).setup_clients()
         # Clients for Swift
         cls.account_client = cls.os_operator.account_client
         cls.container_client = cls.os_operator.container_client
