@@ -18,6 +18,7 @@ from oslo_utils import excutils
 from tempest_lib.common.utils import data_utils
 
 from tempest.common import fixed_network
+from tempest.common import service_client
 from tempest.common import waiters
 from tempest import config
 
@@ -33,7 +34,7 @@ def create_test_server(clients, validatable=False, validation_resources=None,
     This method is a common wrapper returning a test server that can be
     pingable or sshable.
 
-    :param clients: Client manager which provides Openstack Tempest clients.
+    :param clients: Client manager which provides OpenStack Tempest clients.
     :param validatable: Whether the server will be pingable or sshable.
     :param validation_resources: Resources created for the connection to the
     server. Include a keypair, a security group and an IP.
@@ -50,8 +51,8 @@ def create_test_server(clients, validatable=False, validation_resources=None,
     else:
         name = data_utils.rand_name(__name__ + "-instance")
 
-    flavor = kwargs.get('flavor', CONF.compute.flavor_ref)
-    image_id = kwargs.get('image_id', CONF.compute.image_ref)
+    flavor = kwargs.pop('flavor', CONF.compute.flavor_ref)
+    image_id = kwargs.pop('image_id', CONF.compute.image_ref)
 
     kwargs = fixed_network.set_networks_kwarg(
         tenant_network, kwargs) or {}
@@ -84,16 +85,20 @@ def create_test_server(clients, validatable=False, validation_resources=None,
             if wait_until is None:
                 wait_until = 'ACTIVE'
 
-    body = clients.servers_client.create_server(name, image_id, flavor,
+    body = clients.servers_client.create_server(name=name, imageRef=image_id,
+                                                flavorRef=flavor,
                                                 **kwargs)
 
     # handle the case of multiple servers
-    servers = [body]
+    servers = []
     if 'min_count' in kwargs or 'max_count' in kwargs:
         # Get servers created which name match with name param.
         body_servers = clients.servers_client.list_servers()
         servers = \
             [s for s in body_servers['servers'] if s['name'].startswith(name)]
+    else:
+        body = service_client.ResponseBody(body.response, body['server'])
+        servers = [body]
 
     # The name of the method to associate a floating IP to as server is too
     # long for PEP8 compliance so:

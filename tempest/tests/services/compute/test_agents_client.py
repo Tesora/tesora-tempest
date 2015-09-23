@@ -12,8 +12,9 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from tempest_lib.tests import fake_auth_provider
+
 from tempest.services.compute.json import agents_client
-from tempest.tests import fake_auth_provider
 from tempest.tests.services.compute import base
 
 
@@ -56,6 +57,12 @@ class TestAgentsClient(base.BaseComputeServiceTest):
             'tempest.common.service_client.ServiceClient.get',
             {"agents": []},
             bytes_body)
+        self.check_service_client_function(
+            self.client.list_agents,
+            'tempest.common.service_client.ServiceClient.get',
+            {"agents": []},
+            bytes_body,
+            hypervisor="kvm")
 
     def _test_create_agent(self, bytes_body=False):
         self.check_service_client_function(
