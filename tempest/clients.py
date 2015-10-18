@@ -16,6 +16,16 @@
 import copy
 
 from oslo_log import log as logging
+from tempest_lib.services.compute.agents_client import AgentsClient
+from tempest_lib.services.compute.aggregates_client import AggregatesClient
+from tempest_lib.services.compute.availability_zone_client import \
+    AvailabilityZoneClient
+from tempest_lib.services.compute.baremetal_nodes_client import \
+    BaremetalNodesClient
+from tempest_lib.services.compute.certificates_client import \
+    CertificatesClient
+from tempest_lib.services.compute.extensions_client import \
+    ExtensionsClient
 from tempest_lib.services.identity.v2.token_client import TokenClient
 from tempest_lib.services.identity.v3.token_client import V3TokenClient
 
@@ -27,18 +37,6 @@ from tempest import manager
 from tempest.services.baremetal.v1.json.baremetal_client import \
     BaremetalClient
 from tempest.services import botoclients
-from tempest.services.compute.json.agents_client import \
-    AgentsClient
-from tempest.services.compute.json.aggregates_client import \
-    AggregatesClient
-from tempest.services.compute.json.availability_zone_client import \
-    AvailabilityZoneClient
-from tempest.services.compute.json.baremetal_nodes_client import \
-    BaremetalNodesClient
-from tempest.services.compute.json.certificates_client import \
-    CertificatesClient
-from tempest.services.compute.json.extensions_client import \
-    ExtensionsClient
 from tempest.services.compute.json.fixed_ips_client import FixedIPsClient
 from tempest.services.compute.json.flavors_client import FlavorsClient
 from tempest.services.compute.json.floating_ip_pools_client import \
@@ -74,15 +72,15 @@ from tempest.services.compute.json.server_groups_client import \
     ServerGroupsClient
 from tempest.services.compute.json.servers_client import ServersClient
 from tempest.services.compute.json.services_client import ServicesClient
-from tempest.services.compute.json.snapshots_extensions_client import \
-    SnapshotsExtensionsClient
+from tempest.services.compute.json.snapshots_client import \
+    SnapshotsClient as ComputeSnapshotsClient
 from tempest.services.compute.json.tenant_networks_client import \
     TenantNetworksClient
 from tempest.services.compute.json.tenant_usages_client import \
     TenantUsagesClient
 from tempest.services.compute.json.versions_client import VersionsClient
-from tempest.services.compute.json.volumes_extensions_client import \
-    VolumesExtensionsClient
+from tempest.services.compute.json.volumes_client import \
+    VolumesClient as ComputeVolumesClient
 from tempest.services.data_processing.v1_1.data_processing_client import \
     DataProcessingClient
 from tempest.services.database.json.flavors_client import \
@@ -108,6 +106,7 @@ from tempest.services.image.v2.json.image_client import ImageClientV2
 from tempest.services.messaging.json.messaging_client import \
     MessagingClient
 from tempest.services.network.json.network_client import NetworkClient
+from tempest.services.network.json.networks_client import NetworksClient
 from tempest.services.object_storage.account_client import AccountClient
 from tempest.services.object_storage.container_client import ContainerClient
 from tempest.services.object_storage.object_client import ObjectClient
@@ -190,6 +189,14 @@ class Manager(manager.Manager):
             endpoint_type=CONF.baremetal.endpoint_type,
             **self.default_params_with_timeout_values)
         self.network_client = NetworkClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
+        self.networks_client = NetworksClient(
             self.auth_provider,
             CONF.network.catalog_type,
             CONF.network.region or CONF.identity.region,
@@ -325,11 +332,11 @@ class Manager(manager.Manager):
             'build_interval': CONF.volume.build_interval,
             'build_timeout': CONF.volume.build_timeout
         })
-        self.volumes_extensions_client = VolumesExtensionsClient(
+        self.volumes_extensions_client = ComputeVolumesClient(
             self.auth_provider, **params_volume)
         self.compute_versions_client = VersionsClient(self.auth_provider,
                                                       **params_volume)
-        self.snapshots_extensions_client = SnapshotsExtensionsClient(
+        self.snapshots_extensions_client = ComputeSnapshotsClient(
             self.auth_provider, **params_volume)
 
     def _set_database_clients(self):
