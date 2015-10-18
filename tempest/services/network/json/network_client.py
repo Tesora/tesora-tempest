@@ -34,28 +34,6 @@ class NetworkClient(base.BaseNetworkClient):
     quotas
     """
 
-    def create_network(self, **kwargs):
-        uri = '/networks'
-        post_data = {'network': kwargs}
-        return self.create_resource(uri, post_data)
-
-    def update_network(self, network_id, **kwargs):
-        uri = '/networks/%s' % network_id
-        post_data = {'network': kwargs}
-        return self.update_resource(uri, post_data)
-
-    def show_network(self, network_id, **fields):
-        uri = '/networks/%s' % network_id
-        return self.show_resource(uri, **fields)
-
-    def delete_network(self, network_id):
-        uri = '/networks/%s' % network_id
-        return self.delete_resource(uri)
-
-    def list_networks(self, **filters):
-        uri = '/networks'
-        return self.list_resources(uri, **filters)
-
     def create_subnet(self, **kwargs):
         uri = '/subnets'
         post_data = {'subnet': kwargs}
@@ -445,3 +423,25 @@ class NetworkClient(base.BaseNetworkClient):
         post_body = {'network_id': network_id}
         uri = '/agents/%s/dhcp-networks' % agent_id
         return self.create_resource(uri, post_body)
+
+    def list_subnetpools(self, **filters):
+        uri = '/subnetpools'
+        return self.list_resources(uri, **filters)
+
+    def create_subnetpools(self, **kwargs):
+        uri = '/subnetpools'
+        post_data = {'subnetpool': kwargs}
+        return self.create_resource(uri, post_data)
+
+    def show_subnetpools(self, subnetpool_id, **fields):
+        uri = '/subnetpools/%s' % subnetpool_id
+        return self.show_resource(uri, **fields)
+
+    def update_subnetpools(self, subnetpool_id, **kwargs):
+        uri = '/subnetpools/%s' % subnetpool_id
+        post_data = {'subnetpool': kwargs}
+        return self.update_resource(uri, post_data)
+
+    def delete_subnetpools(self, subnetpool_id):
+        uri = '/subnetpools/%s' % subnetpool_id
+        return self.delete_resource(uri)

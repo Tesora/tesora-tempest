@@ -53,7 +53,7 @@ AuthGroup = [
                     "at least `2 * CONC` distinct accounts configured in "
                     " the `test_accounts_file`, with CONC == the "
                     "number of concurrent test processes."),
-    cfg.BoolOpt('allow_tenant_isolation',
+    cfg.BoolOpt('use_dynamic_credentials',
                 default=True,
                 help="Allows test cases to create/destroy tenants and "
                      "users. This option requires that OpenStack Identity "
@@ -61,6 +61,8 @@ AuthGroup = [
                      "test cases and parallel execution, can still be "
                      "achieved configuring a list of test accounts",
                 deprecated_opts=[cfg.DeprecatedOpt('allow_tenant_isolation',
+                                                   group='auth'),
+                                 cfg.DeprecatedOpt('allow_tenant_isolation',
                                                    group='compute'),
                                  cfg.DeprecatedOpt('allow_tenant_isolation',
                                                    group='orchestration')]),
@@ -76,12 +78,32 @@ AuthGroup = [
                                 group='auth')]),
     cfg.BoolOpt('create_isolated_networks',
                 default=True,
-                help="If allow_tenant_isolation is set to True and Neutron is "
-                     "enabled Tempest will try to create a usable network, "
-                     "subnet, and router when needed for each tenant it  "
+                help="If use_dynamic_credentials is set to True and Neutron "
+                     "is enabled Tempest will try to create a usable network, "
+                     "subnet, and router when needed for each tenant it "
                      "creates. However in some neutron configurations, like "
                      "with VLAN provider networks, this doesn't work. So if "
                      "set to False the isolated networks will not be created"),
+    cfg.StrOpt('admin_username',
+               help="Username for an administrative user. This is needed for "
+                    "authenticating requests made by tenant isolation to "
+                    "create users and projects",
+               deprecated_group='identity'),
+    cfg.StrOpt('admin_tenant_name',
+               help="Tenant name to use for an  administrative user. This is "
+                    "needed for authenticating requests made by tenant "
+                    "isolation to create users and projects",
+               deprecated_group='identity'),
+    cfg.StrOpt('admin_password',
+               help="Password to use for an  administrative user. This is "
+                    "needed for authenticating requests made by tenant "
+                    "isolation to create users and projects",
+               secret=True,
+               deprecated_group='identity'),
+    cfg.StrOpt('admin_domain_name',
+               help="Admin domain name for authentication (Keystone V3)."
+                    "The same domain applies to user and project",
+               deprecated_group='identity'),
 ]
 
 identity_group = cfg.OptGroup(name='identity',
@@ -133,42 +155,38 @@ IdentityGroup = [
                help="The endpoint type to use for OpenStack Identity "
                     "(Keystone) API v3"),
     cfg.StrOpt('username',
-               help="Username to use for Nova API requests."),
+               help="Username to use for Nova API requests.",
+               deprecated_for_removal=True),
     cfg.StrOpt('tenant_name',
-               help="Tenant name to use for Nova API requests."),
+               help="Tenant name to use for Nova API requests.",
+               deprecated_for_removal=True),
     cfg.StrOpt('admin_role',
                default='admin',
                help="Role required to administrate keystone."),
     cfg.StrOpt('password',
                help="API key to use when authenticating.",
-               secret=True),
+               secret=True,
+               deprecated_for_removal=True),
     cfg.StrOpt('domain_name',
                help="Domain name for authentication (Keystone V3)."
-                    "The same domain applies to user and project"),
+                    "The same domain applies to user and project",
+               deprecated_for_removal=True),
     cfg.StrOpt('alt_username',
                help="Username of alternate user to use for Nova API "
-                    "requests."),
+                    "requests.",
+               deprecated_for_removal=True),
     cfg.StrOpt('alt_tenant_name',
                help="Alternate user's Tenant name to use for Nova API "
-                    "requests."),
+                    "requests.",
+               deprecated_for_removal=True),
     cfg.StrOpt('alt_password',
                help="API key to use when authenticating as alternate user.",
-               secret=True),
+               secret=True,
+               deprecated_for_removal=True),
     cfg.StrOpt('alt_domain_name',
                help="Alternate domain name for authentication (Keystone V3)."
-                    "The same domain applies to user and project"),
-    cfg.StrOpt('admin_username',
-               help="Administrative Username to use for "
-                    "Keystone API requests."),
-    cfg.StrOpt('admin_tenant_name',
-               help="Administrative Tenant name to use for Keystone API "
-                    "requests."),
-    cfg.StrOpt('admin_password',
-               help="API key to use when authenticating as admin.",
-               secret=True),
-    cfg.StrOpt('admin_domain_name',
-               help="Admin domain name for authentication (Keystone V3)."
-                    "The same domain applies to user and project"),
+                    "The same domain applies to user and project",
+               deprecated_for_removal=True),
     cfg.StrOpt('default_domain_id',
                default='default',
                help="ID of the default domain"),
@@ -404,6 +422,9 @@ ComputeFeaturesGroup = [
     cfg.BoolOpt('ec2_api',
                 default=True,
                 help='Does the test environment have the ec2 api running?'),
+    cfg.BoolOpt('nova_cert',
+                default=True,
+                help='Does the test environment have the nova cert running?'),
     # TODO(mriedem): Remove preserve_ports once juno-eol happens.
     cfg.BoolOpt('preserve_ports',
                 default=False,
@@ -424,6 +445,9 @@ ComputeFeaturesGroup = [
                 help='Does the test environment support creating instances '
                      'with multiple ports on the same network? This is only '
                      'valid when using Neutron.'),
+    cfg.BoolOpt('config_drive',
+                default=True,
+                help='Enable special configuration drive with metadata.'),
 ]
 
 
@@ -456,7 +480,16 @@ ImageGroup = [
     cfg.IntOpt('build_interval',
                default=1,
                help="Time in seconds between image operation status "
-                    "checks.")
+                    "checks."),
+    cfg.ListOpt('container_formats',
+                default=['ami', 'ari', 'aki', 'bare', 'ovf', 'ova'],
+                help="A list of image's container formats "
+                     "users can specify."),
+    cfg.ListOpt('disk_formats',
+                default=['ami', 'ari', 'aki', 'vhd', 'vmdk', 'raw', 'qcow2',
+                         'vdi', 'iso'],
+                help="A list of image's disk formats "
+                     "users can specify.")
 ]
 
 image_feature_group = cfg.OptGroup(name='image-feature-enabled',
@@ -541,6 +574,10 @@ NetworkGroup = [
                     " with pre-configured ports."
                     " Supported ports are:"
                     " ['normal','direct','macvtap']"),
+    cfg.ListOpt('default_network',
+                default=["1.0.0.0/16", "2.0.0.0/16"],
+                help="List of ip pools"
+                     " for subnetpools creation"),
 ]
 
 network_feature_group = cfg.OptGroup(name='network-feature-enabled',
@@ -898,29 +935,32 @@ DashboardGroup = [
 ]
 
 
-data_processing_group = cfg.OptGroup(name="data_processing",
+data_processing_group = cfg.OptGroup(name="data-processing",
                                      title="Data Processing options")
 
 DataProcessingGroup = [
     cfg.StrOpt('catalog_type',
-               default='data_processing',
+               default='data-processing',
+               deprecated_group="data_processing",
                help="Catalog type of the data processing service."),
     cfg.StrOpt('endpoint_type',
                default='publicURL',
                choices=['public', 'admin', 'internal',
                         'publicURL', 'adminURL', 'internalURL'],
+               deprecated_group="data_processing",
                help="The endpoint type to use for the data processing "
                     "service."),
 ]
 
 
 data_processing_feature_group = cfg.OptGroup(
-    name="data_processing-feature-enabled",
+    name="data-processing-feature-enabled",
     title="Enabled Data Processing features")
 
 DataProcessingFeaturesGroup = [
     cfg.ListOpt('plugins',
                 default=["vanilla", "hdp"],
+                deprecated_group="data_processing-feature-enabled",
                 help="List of enabled data processing plugins")
 ]
 
@@ -1266,9 +1306,7 @@ def list_opts():
 class TempestConfigPrivate(object):
     """Provides OpenStack configuration information."""
 
-    DEFAULT_CONFIG_DIR = os.path.join(
-        os.path.abspath(os.path.dirname(os.path.dirname(__file__))),
-        "etc")
+    DEFAULT_CONFIG_DIR = os.path.join(os.getcwd(), "etc")
 
     DEFAULT_CONFIG_FILE = "tempest.conf"
 
@@ -1298,9 +1336,9 @@ class TempestConfigPrivate(object):
         self.telemetry = _CONF.telemetry
         self.telemetry_feature_enabled = _CONF['telemetry-feature-enabled']
         self.dashboard = _CONF.dashboard
-        self.data_processing = _CONF.data_processing
+        self.data_processing = _CONF['data-processing']
         self.data_processing_feature_enabled = _CONF[
-            'data_processing-feature-enabled']
+            'data-processing-feature-enabled']
         self.boto = _CONF.boto
         self.stress = _CONF.stress
         self.scenario = _CONF.scenario
