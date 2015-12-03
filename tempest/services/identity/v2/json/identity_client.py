@@ -11,7 +11,6 @@
 #    under the License.
 
 from oslo_serialization import jsonutils as json
-from tempest_lib import exceptions as lib_exc
 
 from tempest.common import service_client
 
@@ -85,7 +84,7 @@ class IdentityClient(service_client.ServiceClient):
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
 
-    def remove_user_role(self, tenant_id, user_id, role_id):
+    def delete_user_role(self, tenant_id, user_id, role_id):
         """Removes a role assignment for a user on a tenant."""
         resp, body = self.delete('/tenants/%s/users/%s/roles/OS-KSADM/%s' %
                                  (tenant_id, user_id, role_id))
@@ -118,13 +117,6 @@ class IdentityClient(service_client.ServiceClient):
         self.expected_success(200, resp.status)
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
-
-    def get_tenant_by_name(self, tenant_name):
-        tenants = self.list_tenants()['tenants']
-        for tenant in tenants:
-            if tenant['name'] == tenant_name:
-                return tenant
-        raise lib_exc.NotFound('No such tenant')
 
     def update_tenant(self, tenant_id, **kwargs):
         """Updates a tenant."""
@@ -219,13 +211,6 @@ class IdentityClient(service_client.ServiceClient):
         self.expected_success(200, resp.status)
         body = json.loads(body)
         return service_client.ResponseBody(resp, body)
-
-    def get_user_by_username(self, tenant_id, username):
-        users = self.list_tenant_users(tenant_id)['users']
-        for user in users:
-            if user['name'] == username:
-                return user
-        raise lib_exc.NotFound('No such user')
 
     def create_service(self, name, type, **kwargs):
         """Create a service."""

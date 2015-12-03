@@ -17,6 +17,7 @@
 from oslo_log import log as logging
 
 from tempest.common import credentials_factory as credentials
+from tempest.common import identity
 from tempest import config
 from tempest import test
 
@@ -87,7 +88,7 @@ def _get_network_id(net_name, tenant_name):
     id_cl = am.identity_client
 
     networks = net_cl.list_networks()
-    tenant = id_cl.get_tenant_by_name(tenant_name)
+    tenant = identity.get_tenant_by_name(id_cl, tenant_name)
     t_id = tenant['id']
     n_id = None
     for net in networks['networks']:
@@ -385,6 +386,7 @@ class NetworkService(BaseService):
         self.networks_client = manager.networks_client
         self.subnets_client = manager.subnets_client
         self.ports_client = manager.ports_client
+        self.floating_ips_client = manager.floating_ips_client
 
     def _filter_by_conf_networks(self, item_list):
         if not item_list or not all(('network_id' in i for i in item_list)):
@@ -421,7 +423,7 @@ class NetworkService(BaseService):
 class NetworkFloatingIpService(NetworkService):
 
     def list(self):
-        client = self.client
+        client = self.floating_ips_client
         flips = client.list_floatingips(**self.tenant_filter)
         flips = flips['floatingips']
         LOG.debug("List count, %s Network Floating IPs" % len(flips))

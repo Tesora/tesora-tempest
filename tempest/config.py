@@ -237,10 +237,6 @@ ComputeGroup = [
     cfg.StrOpt('image_ssh_password',
                default="password",
                help="Password used to authenticate to an instance."),
-    cfg.StrOpt('image_alt_ssh_user',
-               default="root",
-               help="User name used to authenticate to an instance using "
-                    "the alternate image."),
     cfg.IntOpt('build_interval',
                default=1,
                help="Time in seconds between build status checks."),
@@ -726,11 +722,21 @@ VolumeGroup = [
                         'publicURL', 'adminURL', 'internalURL'],
                help="The endpoint type to use for the volume service."),
     cfg.StrOpt('backend1_name',
-               default='BACKEND_1',
-               help="Name of the backend1 (must be declared in cinder.conf)"),
+               default='',
+               help='Name of the backend1 (must be declared in cinder.conf)',
+               deprecated_for_removal=True),
     cfg.StrOpt('backend2_name',
-               default='BACKEND_2',
-               help="Name of the backend2 (must be declared in cinder.conf)"),
+               default='',
+               help='Name of the backend2 (must be declared in cinder.conf)',
+               deprecated_for_removal=True),
+    cfg.ListOpt('backend_names',
+                default=['BACKEND_1', 'BACKEND_2'],
+                help='A list of backend names seperated by comma .'
+                     'The backend name must be declared in cinder.conf',
+                deprecated_opts=[cfg.DeprecatedOpt('BACKEND_1',
+                                                   group='volume'),
+                                 cfg.DeprecatedOpt('BACKEND_2',
+                                                   group='volume')]),
     cfg.StrOpt('storage_protocol',
                default='iSCSI',
                help='Backend protocol to target when creating volume types'),
@@ -919,6 +925,20 @@ TelemetryGroup = [
                 deprecated_for_removal=True,
                 help="This variable is used as flag to enable "
                      "notification tests")
+]
+
+alarming_group = cfg.OptGroup(name='alarming',
+                              title='Alarming Service Options')
+
+AlarmingGroup = [
+    cfg.StrOpt('catalog_type',
+               default='alarming',
+               help="Catalog type of the Alarming service."),
+    cfg.StrOpt('endpoint_type',
+               default='publicURL',
+               choices=['public', 'admin', 'internal',
+                        'publicURL', 'adminURL', 'internalURL'],
+               help="The endpoint type to use for the alarming service."),
 ]
 
 
@@ -1131,6 +1151,9 @@ ServiceAvailableGroup = [
     cfg.BoolOpt('ceilometer',
                 default=True,
                 help="Whether or not Ceilometer is expected to be available"),
+    cfg.BoolOpt('aodh',
+                default=False,
+                help="Whether or not Aodh is expected to be available"),
     cfg.BoolOpt('horizon',
                 default=True,
                 help="Whether or not Horizon is expected to be available"),
@@ -1277,6 +1300,7 @@ _opts = [
     (orchestration_group, OrchestrationGroup),
     (telemetry_group, TelemetryGroup),
     (telemetry_feature_group, TelemetryFeaturesGroup),
+    (alarming_group, AlarmingGroup),
     (dashboard_group, DashboardGroup),
     (data_processing_group, DataProcessingGroup),
     (data_processing_feature_group, DataProcessingFeaturesGroup),

@@ -35,6 +35,28 @@ from tempest_lib.services.compute.floating_ips_bulk_client import \
 from tempest_lib.services.compute.hosts_client import HostsClient
 from tempest_lib.services.compute.hypervisor_client import \
     HypervisorClient
+from tempest_lib.services.compute.images_client import ImagesClient
+from tempest_lib.services.compute.instance_usage_audit_log_client import \
+    InstanceUsagesAuditLogClient
+from tempest_lib.services.compute.limits_client import LimitsClient
+from tempest_lib.services.compute.migrations_client import MigrationsClient
+from tempest_lib.services.compute.networks_client import NetworksClient \
+    as ComputeNetworksClient
+from tempest_lib.services.compute.quota_classes_client import \
+    QuotaClassesClient
+from tempest_lib.services.compute.quotas_client import QuotasClient
+from tempest_lib.services.compute.security_group_default_rules_client import \
+    SecurityGroupDefaultRulesClient
+from tempest_lib.services.compute.security_groups_client import \
+    SecurityGroupsClient
+from tempest_lib.services.compute.services_client import ServicesClient
+from tempest_lib.services.compute.snapshots_client import \
+    SnapshotsClient as ComputeSnapshotsClient
+from tempest_lib.services.compute.tenant_networks_client import \
+    TenantNetworksClient
+from tempest_lib.services.compute.tenant_usages_client import \
+    TenantUsagesClient
+from tempest_lib.services.compute.versions_client import VersionsClient
 from tempest_lib.services.identity.v2.token_client import TokenClient
 from tempest_lib.services.identity.v3.token_client import V3TokenClient
 
@@ -47,37 +69,14 @@ from tempest.services.baremetal.v1.json.baremetal_client import \
 from tempest.services import botoclients
 from tempest.services.compute.json.floating_ips_client import \
     FloatingIPsClient as ComputeFloatingIPsClient
-from tempest.services.compute.json.images_client import ImagesClient
-from tempest.services.compute.json.instance_usage_audit_log_client import \
-    InstanceUsagesAuditLogClient
 from tempest.services.compute.json.interfaces_client import \
     InterfacesClient
 from tempest.services.compute.json.keypairs_client import KeyPairsClient
-from tempest.services.compute.json.limits_client import LimitsClient
-from tempest.services.compute.json.migrations_client import \
-    MigrationsClient
-from tempest.services.compute.json.networks_client import NetworksClient \
-    as ComputeNetworksClient
-from tempest.services.compute.json.quota_classes_client import \
-    QuotaClassesClient
-from tempest.services.compute.json.quotas_client import QuotasClient
-from tempest.services.compute.json.security_group_default_rules_client import \
-    SecurityGroupDefaultRulesClient
 from tempest.services.compute.json.security_group_rules_client import \
     SecurityGroupRulesClient
-from tempest.services.compute.json.security_groups_client import \
-    SecurityGroupsClient
 from tempest.services.compute.json.server_groups_client import \
     ServerGroupsClient
 from tempest.services.compute.json.servers_client import ServersClient
-from tempest.services.compute.json.services_client import ServicesClient
-from tempest.services.compute.json.snapshots_client import \
-    SnapshotsClient as ComputeSnapshotsClient
-from tempest.services.compute.json.tenant_networks_client import \
-    TenantNetworksClient
-from tempest.services.compute.json.tenant_usages_client import \
-    TenantUsagesClient
-from tempest.services.compute.json.versions_client import VersionsClient
 from tempest.services.compute.json.volumes_client import \
     VolumesClient as ComputeVolumesClient
 from tempest.services.data_processing.v1_1.data_processing_client import \
@@ -91,19 +90,23 @@ from tempest.services.database.json.versions_client import \
 from tempest.services.identity.v2.json.identity_client import \
     IdentityClient
 from tempest.services.identity.v3.json.credentials_client import \
-    CredentialsClient
+    CredentialsClient as CredentialsV3Client
 from tempest.services.identity.v3.json.endpoints_client import \
-    EndPointClient
-from tempest.services.identity.v3.json.identity_client import \
-    IdentityV3Client
-from tempest.services.identity.v3.json.policy_client import PolicyClient
-from tempest.services.identity.v3.json.region_client import RegionClient
+    EndPointClient as EndPointV3Client
+from tempest.services.identity.v3.json.groups_client import \
+    GroupsClient as GroupsV3Client
+from tempest.services.identity.v3.json.identity_client import IdentityV3Client
+from tempest.services.identity.v3.json.policy_client import \
+    PolicyClient as PolicyV3Client
+from tempest.services.identity.v3.json.region_client import \
+    RegionClient as RegionV3Client
 from tempest.services.identity.v3.json.service_client import \
-    ServiceClient
+    ServiceClient as ServiceV3Client
 from tempest.services.image.v1.json.image_client import ImageClient
 from tempest.services.image.v2.json.image_client import ImageClientV2
 from tempest.services.messaging.json.messaging_client import \
     MessagingClient
+from tempest.services.network.json.floating_ips_client import FloatingIPsClient
 from tempest.services.network.json.network_client import NetworkClient
 from tempest.services.network.json.networks_client import NetworksClient
 from tempest.services.network.json.ports_client import PortsClient
@@ -113,24 +116,25 @@ from tempest.services.object_storage.container_client import ContainerClient
 from tempest.services.object_storage.object_client import ObjectClient
 from tempest.services.orchestration.json.orchestration_client import \
     OrchestrationClient
+from tempest.services.telemetry.json.alarming_client import AlarmingClient
 from tempest.services.telemetry.json.telemetry_client import \
     TelemetryClient
-from tempest.services.volume.json.admin.volume_hosts_client import \
+from tempest.services.volume.v1.json.admin.volume_hosts_client import \
     VolumeHostsClient
-from tempest.services.volume.json.admin.volume_quotas_client import \
+from tempest.services.volume.v1.json.admin.volume_quotas_client import \
     VolumeQuotasClient
-from tempest.services.volume.json.admin.volume_services_client import \
+from tempest.services.volume.v1.json.admin.volume_services_client import \
     VolumesServicesClient
-from tempest.services.volume.json.admin.volume_types_client import \
+from tempest.services.volume.v1.json.admin.volume_types_client import \
     VolumeTypesClient
-from tempest.services.volume.json.availability_zone_client import \
+from tempest.services.volume.v1.json.availability_zone_client import \
     VolumeAvailabilityZoneClient
-from tempest.services.volume.json.backups_client import BackupsClient
-from tempest.services.volume.json.extensions_client import \
+from tempest.services.volume.v1.json.backups_client import BackupsClient
+from tempest.services.volume.v1.json.extensions_client import \
     ExtensionsClient as VolumeExtensionClient
-from tempest.services.volume.json.qos_client import QosSpecsClient
-from tempest.services.volume.json.snapshots_client import SnapshotsClient
-from tempest.services.volume.json.volumes_client import VolumesClient
+from tempest.services.volume.v1.json.qos_client import QosSpecsClient
+from tempest.services.volume.v1.json.snapshots_client import SnapshotsClient
+from tempest.services.volume.v1.json.volumes_client import VolumesClient
 from tempest.services.volume.v2.json.admin.volume_hosts_client import \
     VolumeHostsV2Client
 from tempest.services.volume.v2.json.admin.volume_quotas_client import \
@@ -154,10 +158,7 @@ LOG = logging.getLogger(__name__)
 
 
 class Manager(manager.Manager):
-
-    """
-    Top level manager for OpenStack tempest clients
-    """
+    """Top level manager for OpenStack tempest clients"""
 
     default_params = {
         'disable_ssl_certificate_validation':
@@ -221,6 +222,14 @@ class Manager(manager.Manager):
             build_interval=CONF.network.build_interval,
             build_timeout=CONF.network.build_timeout,
             **self.default_params)
+        self.floating_ips_client = FloatingIPsClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
         self.messaging_client = MessagingClient(
             self.auth_provider,
             CONF.messaging.catalog_type,
@@ -232,6 +241,13 @@ class Manager(manager.Manager):
                 CONF.telemetry.catalog_type,
                 CONF.identity.region,
                 endpoint_type=CONF.telemetry.endpoint_type,
+                **self.default_params_with_timeout_values)
+        if CONF.service_available.aodh:
+            self.alarming_client = AlarmingClient(
+                self.auth_provider,
+                CONF.alarming.catalog_type,
+                CONF.identity.region,
+                endpoint_type=CONF.alarming.endpoint_type,
                 **self.default_params_with_timeout_values)
         if CONF.service_available.glance:
             self.image_client = ImageClient(
@@ -392,16 +408,17 @@ class Manager(manager.Manager):
                                                      **params_v2_public)
         params_v3 = params.copy()
         params_v3['endpoint_type'] = CONF.identity.v3_endpoint_type
-        # Client uses the endpoint type of Keystone API v3
+        # Clients below use the endpoint type of Keystone API v3
         self.identity_v3_client = IdentityV3Client(self.auth_provider,
                                                    **params_v3)
-        self.endpoints_client = EndPointClient(self.auth_provider,
-                                               **params)
-        self.service_client = ServiceClient(self.auth_provider, **params)
-        self.policy_client = PolicyClient(self.auth_provider, **params)
-        self.region_client = RegionClient(self.auth_provider, **params)
-        self.credentials_client = CredentialsClient(self.auth_provider,
-                                                    **params)
+        self.endpoints_client = EndPointV3Client(self.auth_provider,
+                                                 **params_v3)
+        self.service_client = ServiceV3Client(self.auth_provider, **params_v3)
+        self.policy_client = PolicyV3Client(self.auth_provider, **params_v3)
+        self.region_client = RegionV3Client(self.auth_provider, **params_v3)
+        self.credentials_client = CredentialsV3Client(self.auth_provider,
+                                                      **params_v3)
+        self.groups_client = GroupsV3Client(self.auth_provider, **params_v3)
         # Token clients do not use the catalog. They only need default_params.
         # They read auth_url, so they should only be set if the corresponding
         # API version is marked as enabled

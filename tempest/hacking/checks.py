@@ -32,6 +32,7 @@ mutable_default_args = re.compile(r"^\s*def .+\((.+=\{\}|.+=\[\])")
 TESTTOOLS_SKIP_DECORATOR = re.compile(r'\s*@testtools\.skip\((.*)\)')
 METHOD = re.compile(r"^    def .+")
 METHOD_GET_RESOURCE = re.compile(r"^\s*def (list|show)\_.+")
+METHOD_DELETE_RESOURCE = re.compile(r"^\s*def delete_.+")
 CLASS = re.compile(r"^class .+")
 
 
@@ -146,27 +147,37 @@ def no_testtools_skip_decorator(logical_line):
                "decorators.skip_because from tempest-lib")
 
 
+def _common_service_clients_check(logical_line, physical_line, filename,
+                                  ignored_list_file=None):
+    if 'tempest/services/' not in filename:
+        return False
+
+    if ignored_list_file is not None:
+        ignored_list = []
+        with open('tempest/hacking/' + ignored_list_file) as f:
+            for line in f:
+                ignored_list.append(line.strip())
+
+        if filename in ignored_list:
+            return False
+
+    if not METHOD.match(physical_line):
+        return False
+
+    if pep8.noqa(physical_line):
+        return False
+
+    return True
+
+
 def get_resources_on_service_clients(logical_line, physical_line, filename,
                                      line_number, lines):
     """Check that service client names of GET should be consistent
 
     T110
     """
-    if 'tempest/services/' not in filename:
-        return
-
-    ignored_list = []
-    with open('tempest/hacking/ignored_list_T110.txt') as f:
-        for line in f:
-            ignored_list.append(line.strip())
-
-    if filename in ignored_list:
-        return
-
-    if not METHOD.match(physical_line):
-        return
-
-    if pep8.noqa(physical_line):
+    if not _common_service_clients_check(logical_line, physical_line,
+                                         filename, 'ignored_list_T110.txt'):
         return
 
     for line in lines[line_number:]:
@@ -185,6 +196,32 @@ def get_resources_on_service_clients(logical_line, physical_line, filename,
         yield (0, msg)
 
 
+def delete_resources_on_service_clients(logical_line, physical_line, filename,
+                                        line_number, lines):
+    """Check that service client names of DELETE should be consistent
+
+    T111
+    """
+    if not _common_service_clients_check(logical_line, physical_line,
+                                         filename, 'ignored_list_T111.txt'):
+        return
+
+    for line in lines[line_number:]:
+        if METHOD.match(line) or CLASS.match(line):
+            # the end of a method
+            return
+
+        if 'self.delete(' not in line:
+            continue
+
+        if METHOD_DELETE_RESOURCE.match(logical_line):
+            return
+
+        msg = ("T111: [DELETE /resources/<id>] methods should be "
+               "delete_<resource name>")
+        yield (0, msg)
+
+
 def factory(register):
     register(import_no_clients_in_api_and_scenario_tests)
     register(scenario_tests_need_service_tags)
@@ -195,3 +232,4 @@ def factory(register):
     register(no_mutable_default_args)
     register(no_testtools_skip_decorator)
     register(get_resources_on_service_clients)
+    register(delete_resources_on_service_clients)
