@@ -13,6 +13,7 @@
 
 import os
 
+from oslo_concurrency import lockutils
 from oslo_log import log as logging
 from tempest_lib import auth
 
@@ -40,6 +41,29 @@ Client managers with hard-coded configured credentials are also moved here,
 to avoid circular dependencies."""
 
 # === Credential Providers
+
+
+# Subset of the parameters of credential providers that depend on configuration
+def _get_common_provider_params():
+    return {
+        'credentials_domain': CONF.auth.default_credentials_domain_name,
+        'admin_role': CONF.identity.admin_role
+    }
+
+
+def _get_dynamic_provider_params():
+    return _get_common_provider_params()
+
+
+def _get_preprov_provider_params():
+    _common_params = _get_common_provider_params()
+    reseller_admin_role = CONF.object_storage.reseller_admin_role
+    return dict(_common_params, **dict([
+        ('accounts_lock_dir', lockutils.get_lock_path(CONF)),
+        ('test_accounts_file', CONF.auth.test_accounts_file),
+        ('object_storage_operator_role', CONF.object_storage.operator_role),
+        ('object_storage_reseller_admin_role', reseller_admin_role)
+    ]))
 
 
 class LegacyCredentialProvider(cred_provider.CredentialProvider):
@@ -118,11 +142,11 @@ class LegacyCredentialProvider(cred_provider.CredentialProvider):
         raise exceptions.InvalidConfiguration(msg)
 
     def is_role_available(self, role):
-        msg = "Credentials being specified through the config file can not be"\
-              " used with tests that specify using credentials by roles. "\
-              "Either exclude/skip the tests doing this or use either an "\
-              "test_accounts_file or dynamic credentials."
-        raise exceptions.InvalidConfiguration(msg)
+        # NOTE(andreaf) LegacyCredentialProvider does not support credentials
+        # by role, so returning always False.
+        # Test that rely on credentials by role should use this to skip
+        # when this is credential provider is used
+        return False
 
 
 # Return the right implementation of CredentialProvider based on config
@@ -143,17 +167,15 @@ def get_credentials_provider(name, network_resources=None,
             name=name,
             network_resources=network_resources,
             identity_version=identity_version,
-            credentials_domain=CONF.auth.default_credentials_domain_name,
-            admin_role=CONF.identity.admin_role,
-            admin_creds=admin_creds)
+            admin_creds=admin_creds,
+            **_get_dynamic_provider_params())
     else:
         if (CONF.auth.test_accounts_file and
                 os.path.isfile(CONF.auth.test_accounts_file)):
             # Most params are not relevant for pre-created accounts
             return preprov_creds.PreProvisionedCredentialProvider(
                 name=name, identity_version=identity_version,
-                credentials_domain=CONF.auth.default_credentials_domain_name,
-                admin_role=CONF.identity.admin_role)
+                **_get_preprov_provider_params())
         else:
             # Dynamic credentials are disabled, and the account file is not
             # defined - we fall back on credentials configured in tempest.conf
@@ -175,7 +197,7 @@ def is_admin_available(identity_version):
             os.path.isfile(CONF.auth.test_accounts_file)):
         check_accounts = preprov_creds.PreProvisionedCredentialProvider(
             identity_version=identity_version, name='check_admin',
-            admin_role=CONF.identity.admin_role)
+            **_get_preprov_provider_params())
         if not check_accounts.admin_available():
             is_admin = False
     else:
@@ -201,7 +223,7 @@ def is_alt_available(identity_version):
             os.path.isfile(CONF.auth.test_accounts_file)):
         check_accounts = preprov_creds.PreProvisionedCredentialProvider(
             identity_version=identity_version, name='check_alt',
-            admin_role=CONF.identity.admin_role)
+            **_get_preprov_provider_params())
     else:
         check_accounts = LegacyCredentialProvider(identity_version)
     try:
@@ -292,10 +314,7 @@ def get_credentials(fill_in=True, identity_version=None, **kwargs):
 
 
 class ConfiguredUserManager(clients.Manager):
-    """
-    Manager object that uses the `user` credentials for its
-    managed client objects
-    """
+    """Manager that uses user credentials for its managed client objects"""
 
     def __init__(self, service=None):
         super(ConfiguredUserManager, self).__init__(
@@ -304,11 +323,7 @@ class ConfiguredUserManager(clients.Manager):
 
 
 class AdminManager(clients.Manager):
-
-    """
-    Manager object that uses the admin credentials for its
-    managed client objects
-    """
+    """Manager that uses admin credentials for its managed client objects"""
 
     def __init__(self, service=None):
         super(AdminManager, self).__init__(

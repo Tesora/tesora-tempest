@@ -59,6 +59,7 @@ from oslo_serialization import jsonutils as json
 from tempest import clients
 from tempest.cmd import cleanup_service
 from tempest.common import credentials_factory as credentials
+from tempest.common import identity
 from tempest import config
 
 SAVED_STATE_JSON = "saved_state.json"
@@ -177,11 +178,12 @@ class TempestCleanup(command.Command):
     def _init_admin_ids(self):
         id_cl = self.admin_mgr.identity_client
 
-        tenant = id_cl.get_tenant_by_name(CONF.auth.admin_tenant_name)
+        tenant = identity.get_tenant_by_name(id_cl,
+                                             CONF.auth.admin_tenant_name)
         self.admin_tenant_id = tenant['id']
 
-        user = id_cl.get_user_by_username(self.admin_tenant_id,
-                                          CONF.auth.admin_username)
+        user = identity.get_user_by_username(id_cl, self.admin_tenant_id,
+                                             CONF.auth.admin_username)
         self.admin_id = user['id']
 
         roles = id_cl.list_roles()['roles']
@@ -238,7 +240,7 @@ class TempestCleanup(command.Command):
         id_cl = credentials.AdminManager().identity_client
         if (self._tenant_exists(tenant_id)):
             try:
-                id_cl.remove_user_role(tenant_id, self.admin_id,
+                id_cl.delete_user_role(tenant_id, self.admin_id,
                                        self.admin_role_id)
             except Exception as ex:
                 LOG.exception("Failed removing role from tenant which still"
