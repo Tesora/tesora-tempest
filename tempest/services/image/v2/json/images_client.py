@@ -22,13 +22,13 @@ from tempest.common import glance_http
 from tempest.common import service_client
 
 
-class ImageClientV2(service_client.ServiceClient):
+class ImagesClientV2(service_client.ServiceClient):
 
     def __init__(self, auth_provider, catalog_type, region, endpoint_type=None,
                  build_interval=None, build_timeout=None,
                  disable_ssl_certificate_validation=None, ca_certs=None,
                  trace_requests=None):
-        super(ImageClientV2, self).__init__(
+        super(ImagesClientV2, self).__init__(
             auth_provider,
             catalog_type,
             region,
@@ -187,6 +187,11 @@ class ImageClientV2(service_client.ServiceClient):
         return service_client.ResponseBody(resp, body)
 
     def update_image_member(self, image_id, member_id, **kwargs):
+        """Update an image member.
+
+        Available params: see http://developer.openstack.org/
+                              api-ref-image-v2.html#updateImageMember-v2
+        """
         url = 'v2/images/%s/members/%s' % (image_id, member_id)
         data = json.dumps(kwargs)
         resp, body = self.put(url, data)
