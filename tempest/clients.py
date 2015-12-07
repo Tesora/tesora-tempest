@@ -35,7 +35,8 @@ from tempest_lib.services.compute.floating_ips_bulk_client import \
 from tempest_lib.services.compute.hosts_client import HostsClient
 from tempest_lib.services.compute.hypervisor_client import \
     HypervisorClient
-from tempest_lib.services.compute.images_client import ImagesClient
+from tempest_lib.services.compute.images_client import ImagesClient \
+    as ComputeImagesClient
 from tempest_lib.services.compute.instance_usage_audit_log_client import \
     InstanceUsagesAuditLogClient
 from tempest_lib.services.compute.limits_client import LimitsClient
@@ -102,11 +103,13 @@ from tempest.services.identity.v3.json.region_client import \
     RegionClient as RegionV3Client
 from tempest.services.identity.v3.json.service_client import \
     ServiceClient as ServiceV3Client
-from tempest.services.image.v1.json.image_client import ImageClient
-from tempest.services.image.v2.json.image_client import ImageClientV2
+from tempest.services.image.v1.json.images_client import ImagesClient
+from tempest.services.image.v2.json.images_client import ImagesClientV2
 from tempest.services.messaging.json.messaging_client import \
     MessagingClient
 from tempest.services.network.json.floating_ips_client import FloatingIPsClient
+from tempest.services.network.json.metering_labels_client import \
+    MeteringLabelsClient
 from tempest.services.network.json.network_client import NetworkClient
 from tempest.services.network.json.networks_client import NetworksClient
 from tempest.services.network.json.ports_client import PortsClient
@@ -230,6 +233,14 @@ class Manager(manager.Manager):
             build_interval=CONF.network.build_interval,
             build_timeout=CONF.network.build_timeout,
             **self.default_params)
+        self.metering_labels_client = MeteringLabelsClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
         self.messaging_client = MessagingClient(
             self.auth_provider,
             CONF.messaging.catalog_type,
@@ -250,7 +261,7 @@ class Manager(manager.Manager):
                 endpoint_type=CONF.alarming.endpoint_type,
                 **self.default_params_with_timeout_values)
         if CONF.service_available.glance:
-            self.image_client = ImageClient(
+            self.image_client = ImagesClient(
                 self.auth_provider,
                 CONF.image.catalog_type,
                 CONF.image.region or CONF.identity.region,
@@ -258,7 +269,7 @@ class Manager(manager.Manager):
                 build_interval=CONF.image.build_interval,
                 build_timeout=CONF.image.build_timeout,
                 **self.default_params)
-            self.image_client_v2 = ImageClientV2(
+            self.image_client_v2 = ImagesClientV2(
                 self.auth_provider,
                 CONF.image.catalog_type,
                 CONF.image.region or CONF.identity.region,
@@ -319,7 +330,7 @@ class Manager(manager.Manager):
         self.server_groups_client = ServerGroupsClient(
             self.auth_provider, **params)
         self.limits_client = LimitsClient(self.auth_provider, **params)
-        self.images_client = ImagesClient(self.auth_provider, **params)
+        self.images_client = ComputeImagesClient(self.auth_provider, **params)
         self.keypairs_client = KeyPairsClient(self.auth_provider, **params)
         self.quotas_client = QuotasClient(self.auth_provider, **params)
         self.quota_classes_client = QuotaClassesClient(self.auth_provider,
