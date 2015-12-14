@@ -1,4 +1,4 @@
-# Copyright 2014 NEC Corporation
+# Copyright 2012 OpenStack Foundation
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -13,9 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest.services.volume.base.admin import base_volume_services_client
+from tempest.services.volume.base.admin import base_types_client
 
 
-class VolumesServicesClient(
-        base_volume_services_client.BaseVolumesServicesClient):
-    """Volume V1 volume services client"""
+class TypesClient(base_types_client.BaseTypesClient):
+    """Volume V1 Volume Types client"""

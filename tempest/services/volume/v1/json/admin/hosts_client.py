@@ -1,4 +1,5 @@
-# Copyright (C) 2014 eNovance SAS <licensing@enovance.com>
+# Copyright 2013 OpenStack Foundation
+# All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -12,8 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest.services.volume.base.admin import base_volume_quotas_client
+from tempest.services.volume.base.admin import base_hosts_client
 
 
-class VolumeQuotasClient(base_volume_quotas_client.BaseVolumeQuotasClient):
-    """Client class to send CRUD Volume Type API V1 requests"""
+class HostsClient(base_hosts_client.BaseHostsClient):
+    """Client class to send CRUD Volume Host API V1 requests"""

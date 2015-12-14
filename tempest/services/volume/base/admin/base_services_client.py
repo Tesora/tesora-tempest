@@ -1,4 +1,4 @@
-# Copyright 2013 OpenStack Foundation
+# Copyright 2014 NEC Corporation
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -19,13 +19,10 @@ from six.moves.urllib import parse as urllib
 from tempest.common import service_client
 
 
-class BaseVolumeHostsClient(service_client.ServiceClient):
-    """Client class to send CRUD Volume Hosts API requests"""
+class BaseServicesClient(service_client.ServiceClient):
 
-    def list_hosts(self, **params):
-        """Lists all hosts."""
-
-        url = 'os-hosts'
+    def list_services(self, **params):
+        url = 'os-services'
         if params:
             url += '?%s' % urllib.urlencode(params)
 

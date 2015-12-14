@@ -35,23 +35,6 @@ class NetworkClient(base.BaseNetworkClient):
     quotas
     """
 
-    def create_metering_label_rule(self, **kwargs):
-        uri = '/metering/metering-label-rules'
-        post_data = {'metering_label_rule': kwargs}
-        return self.create_resource(uri, post_data)
-
-    def show_metering_label_rule(self, metering_label_rule_id, **fields):
-        uri = '/metering/metering-label-rules/%s' % metering_label_rule_id
-        return self.show_resource(uri, **fields)
-
-    def delete_metering_label_rule(self, metering_label_rule_id):
-        uri = '/metering/metering-label-rules/%s' % metering_label_rule_id
-        return self.delete_resource(uri)
-
-    def list_metering_label_rules(self, **filters):
-        uri = '/metering/metering-label-rules'
-        return self.list_resources(uri, **filters)
-
     def create_security_group(self, **kwargs):
         uri = '/security-groups'
         post_data = {'security_group': kwargs}
@@ -300,10 +283,12 @@ class NetworkClient(base.BaseNetworkClient):
         uri = '/routers/%s/l3-agents' % router_id
         return self.list_resources(uri)
 
-    def add_router_to_l3_agent(self, agent_id, router_id):
+    def add_router_to_l3_agent(self, agent_id, **kwargs):
+        # TODO(piyush): Current api-site doesn't contain this API description.
+        # After fixing the api-site, we need to fix here also for putting the
+        # link to api-site.
         uri = '/agents/%s/l3-routers' % agent_id
-        post_body = {"router_id": router_id}
-        return self.create_resource(uri, post_body)
+        return self.create_resource(uri, kwargs)
 
     def remove_router_from_l3_agent(self, agent_id, router_id):
         uri = '/agents/%s/l3-routers/%s' % (agent_id, router_id)
