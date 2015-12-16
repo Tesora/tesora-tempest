@@ -50,7 +50,7 @@ from tempest_lib.services.compute.quotas_client import QuotasClient
 from tempest_lib.services.compute.security_group_default_rules_client import \
     SecurityGroupDefaultRulesClient
 from tempest_lib.services.compute.security_groups_client import \
-    SecurityGroupsClient
+    SecurityGroupsClient as ComputeSecurityGroupsClient
 from tempest_lib.services.compute.services_client import ServicesClient
 from tempest_lib.services.compute.snapshots_client import \
     SnapshotsClient as ComputeSnapshotsClient
@@ -89,6 +89,8 @@ from tempest.services.database.json.versions_client import \
     DatabaseVersionsClient
 from tempest.services.identity.v2.json.identity_client import \
     IdentityClient
+from tempest.services.identity.v2.json.tenants_client import \
+    TenantsClient
 from tempest.services.identity.v3.json.credentials_client import \
     CredentialsClient as CredentialsV3Client
 from tempest.services.identity.v3.json.endpoints_client import \
@@ -358,7 +360,7 @@ class Manager(manager.Manager):
             self.auth_provider, **params)
         self.security_group_rules_client = SecurityGroupRulesClient(
             self.auth_provider, **params)
-        self.security_groups_client = SecurityGroupsClient(
+        self.compute_security_groups_client = ComputeSecurityGroupsClient(
             self.auth_provider, **params)
         self.interfaces_client = InterfacesClient(self.auth_provider,
                                                   **params)
@@ -423,12 +425,16 @@ class Manager(manager.Manager):
         # Client uses admin endpoint type of Keystone API v2
         self.identity_client = IdentityClient(self.auth_provider,
                                               **params_v2_admin)
+        self.tenants_client = TenantsClient(self.auth_provider,
+                                            **params_v2_admin)
         params_v2_public = params.copy()
         params_v2_public['endpoint_type'] = (
             CONF.identity.v2_public_endpoint_type)
         # Client uses public endpoint type of Keystone API v2
         self.identity_public_client = IdentityClient(self.auth_provider,
                                                      **params_v2_public)
+        self.tenants_public_client = TenantsClient(self.auth_provider,
+                                                   **params_v2_public)
         params_v3 = params.copy()
         params_v3['endpoint_type'] = CONF.identity.v3_endpoint_type
         # Clients below use the endpoint type of Keystone API v3
