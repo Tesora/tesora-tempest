@@ -70,7 +70,6 @@ from tempest import exceptions
 from tempest import manager
 from tempest.services.baremetal.v1.json.baremetal_client import \
     BaremetalClient
-from tempest.services import botoclients
 from tempest.services.compute.json.floating_ips_client import \
     FloatingIPsClient as ComputeFloatingIPsClient
 from tempest.services.compute.json.keypairs_client import KeyPairsClient
@@ -89,6 +88,8 @@ from tempest.services.database.json.versions_client import \
     DatabaseVersionsClient
 from tempest.services.identity.v2.json.identity_client import \
     IdentityClient
+from tempest.services.identity.v2.json.roles_client import \
+    RolesClient
 from tempest.services.identity.v2.json.tenants_client import \
     TenantsClient
 from tempest.services.identity.v3.json.credentials_client import \
@@ -116,6 +117,8 @@ from tempest.services.network.json.metering_labels_client import \
 from tempest.services.network.json.network_client import NetworkClient
 from tempest.services.network.json.networks_client import NetworksClient
 from tempest.services.network.json.ports_client import PortsClient
+from tempest.services.network.json.quotas_client import QuotasClient \
+    as NetworkQuotasClient
 from tempest.services.network.json.subnets_client import SubnetsClient
 from tempest.services.object_storage.account_client import AccountClient
 from tempest.services.object_storage.container_client import ContainerClient
@@ -231,6 +234,14 @@ class Manager(manager.Manager):
             build_interval=CONF.network.build_interval,
             build_timeout=CONF.network.build_timeout,
             **self.default_params)
+        self.network_quotas_client = NetworkQuotasClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
         self.floating_ips_client = FloatingIPsClient(
             self.auth_provider,
             CONF.network.catalog_type,
@@ -307,15 +318,6 @@ class Manager(manager.Manager):
             **self.default_params_with_timeout_values)
         self.negative_client = negative_rest_client.NegativeRestClient(
             self.auth_provider, service, **self.default_params)
-
-        # Generating EC2 credentials in tempest is only supported
-        # with identity v2
-        if CONF.identity_feature_enabled.api_v2 and \
-                CONF.identity.auth_version == 'v2':
-            # EC2 and S3 clients, if used, will check configured AWS
-            # credentials and generate new ones if needed
-            self.ec2api_client = botoclients.APIClientEC2(self.identity_client)
-            self.s3_client = botoclients.ObjectClientS3(self.identity_client)
 
     def _set_compute_clients(self):
         params = {
@@ -427,6 +429,8 @@ class Manager(manager.Manager):
                                               **params_v2_admin)
         self.tenants_client = TenantsClient(self.auth_provider,
                                             **params_v2_admin)
+        self.roles_client = RolesClient(self.auth_provider,
+                                        **params_v2_admin)
         params_v2_public = params.copy()
         params_v2_public['endpoint_type'] = (
             CONF.identity.v2_public_endpoint_type)
@@ -435,6 +439,8 @@ class Manager(manager.Manager):
                                                      **params_v2_public)
         self.tenants_public_client = TenantsClient(self.auth_provider,
                                                    **params_v2_public)
+        self.roles_public_client = RolesClient(self.auth_provider,
+                                               **params_v2_public)
         params_v3 = params.copy()
         params_v3['endpoint_type'] = CONF.identity.v3_endpoint_type
         # Clients below use the endpoint type of Keystone API v3

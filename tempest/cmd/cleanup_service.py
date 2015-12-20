@@ -855,12 +855,15 @@ class UserService(IdentityService):
             self.data['users'][user['id']] = user['name']
 
 
-class RoleService(IdentityService):
+class RoleService(BaseService):
+
+    def __init__(self, manager, **kwargs):
+        super(RoleService, self).__init__(kwargs)
+        self.client = manager.roles_client
 
     def list(self):
-        client = self.client
         try:
-            roles = client.list_roles()['roles']
+            roles = self.client.list_roles()['roles']
             # reconcile roles with saved state and never list admin role
             if not self.is_save_state:
                 roles = [role for role in roles if
@@ -874,11 +877,10 @@ class RoleService(IdentityService):
             return []
 
     def delete(self):
-        client = self.client
         roles = self.list()
         for role in roles:
             try:
-                client.delete_role(role['id'])
+                self.client.delete_role(role['id'])
             except Exception:
                 LOG.exception("Delete Role exception.")
 
@@ -893,7 +895,7 @@ class RoleService(IdentityService):
             self.data['roles'][role['id']] = role['name']
 
 
-class TenantService(IdentityService):
+class TenantService(BaseService):
 
     def __init__(self, manager, **kwargs):
         super(TenantService, self).__init__(kwargs)

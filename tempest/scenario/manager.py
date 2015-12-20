@@ -359,7 +359,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
         if isinstance(server_or_ip, six.string_types):
             ip = server_or_ip
         else:
-            addrs = server_or_ip['addresses'][CONF.compute.network_for_ssh]
+            addrs = server_or_ip['addresses'][CONF.validation.network_for_ssh]
             try:
                 ip = (addr['addr'] for addr in addrs if
                       netaddr.valid_ipv4(addr['addr'])).next()
@@ -368,7 +368,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
                                        "remote server.")
 
         if username is None:
-            username = CONF.scenario.ssh_user
+            username = CONF.validation.image_ssh_user
         # Set this with 'keypair' or others to log in with keypair or
         # username/password.
         if CONF.validation.auth_method == 'keypair':
@@ -376,7 +376,7 @@ class ScenarioTest(tempest.test.BaseTestCase):
             if private_key is None:
                 private_key = self.keypair['private_key']
         else:
-            password = CONF.compute.image_ssh_password
+            password = CONF.validation.image_ssh_password
             private_key = None
         linux_client = remote_client.RemoteClient(ip, username,
                                                   pkey=private_key,
@@ -812,8 +812,9 @@ class NetworkScenarioTest(ScenarioTest):
     def _get_server_port_id_and_ip4(self, server, ip_addr=None):
         ports = self._list_ports(device_id=server['id'], status='ACTIVE',
                                  fixed_ip=ip_addr)
-        # it might happen here that this port has more then one ip address
-        # as in case of dual stack- when this port is created on 2 subnets
+        # A port can have more then one IP address in some cases.
+        # If the network is dual-stack (IPv4 + IPv6), this port is associated
+        # with 2 subnets
         port_map = [(p["id"], fxip["ip_address"])
                     for p in ports
                     for fxip in p["fixed_ips"]
@@ -1095,7 +1096,7 @@ class NetworkScenarioTest(ScenarioTest):
         return rules
 
     def _ssh_to_server(self, server, private_key):
-        ssh_login = CONF.compute.image_ssh_user
+        ssh_login = CONF.validation.image_ssh_user
         return self.get_remote_client(server,
                                       username=ssh_login,
                                       private_key=private_key)
