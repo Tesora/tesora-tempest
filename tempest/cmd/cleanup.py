@@ -176,17 +176,18 @@ class TempestCleanup(command.Command):
             svc.run()
 
     def _init_admin_ids(self):
-        id_cl = self.admin_mgr.identity_client
+        tn_cl = self.admin_mgr.tenants_client
+        rl_cl = self.admin_mgr.roles_client
 
-        tenant = identity.get_tenant_by_name(id_cl,
+        tenant = identity.get_tenant_by_name(tn_cl,
                                              CONF.auth.admin_tenant_name)
         self.admin_tenant_id = tenant['id']
 
-        user = identity.get_user_by_username(id_cl, self.admin_tenant_id,
+        user = identity.get_user_by_username(tn_cl, self.admin_tenant_id,
                                              CONF.auth.admin_username)
         self.admin_id = user['id']
 
-        roles = id_cl.list_roles()['roles']
+        roles = rl_cl.list_roles()['roles']
         for role in roles:
             if role['name'] == CONF.identity.admin_role:
                 self.admin_role_id = role['id']
@@ -221,8 +222,9 @@ class TempestCleanup(command.Command):
 
     def _add_admin(self, tenant_id):
         id_cl = self.admin_mgr.identity_client
+        rl_cl = self.admin_mgr.roles_client
         needs_role = True
-        roles = id_cl.list_user_roles(tenant_id, self.admin_id)['roles']
+        roles = rl_cl.list_user_roles(tenant_id, self.admin_id)['roles']
         for role in roles:
             if role['id'] == self.admin_role_id:
                 needs_role = False
@@ -247,9 +249,9 @@ class TempestCleanup(command.Command):
                               "exists, exception: %s" % ex)
 
     def _tenant_exists(self, tenant_id):
-        id_cl = self.admin_mgr.identity_client
+        tn_cl = self.admin_mgr.tenants_client
         try:
-            t = id_cl.show_tenant(tenant_id)
+            t = tn_cl.show_tenant(tenant_id)
             LOG.debug("Tenant is: %s" % str(t))
             return True
         except Exception as ex:
