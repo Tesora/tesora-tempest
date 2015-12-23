@@ -32,6 +32,8 @@ from tempest_lib.services.compute.floating_ip_pools_client import \
     FloatingIPPoolsClient
 from tempest_lib.services.compute.floating_ips_bulk_client import \
     FloatingIPsBulkClient
+from tempest_lib.services.compute.floating_ips_client import \
+    FloatingIPsClient as ComputeFloatingIPsClient
 from tempest_lib.services.compute.hosts_client import HostsClient
 from tempest_lib.services.compute.hypervisor_client import \
     HypervisorClient
@@ -49,8 +51,13 @@ from tempest_lib.services.compute.quota_classes_client import \
 from tempest_lib.services.compute.quotas_client import QuotasClient
 from tempest_lib.services.compute.security_group_default_rules_client import \
     SecurityGroupDefaultRulesClient
+from tempest_lib.services.compute.security_group_rules_client import \
+    SecurityGroupRulesClient
 from tempest_lib.services.compute.security_groups_client import \
     SecurityGroupsClient as ComputeSecurityGroupsClient
+from tempest_lib.services.compute.server_groups_client import \
+    ServerGroupsClient
+from tempest_lib.services.compute.servers_client import ServersClient
 from tempest_lib.services.compute.services_client import ServicesClient
 from tempest_lib.services.compute.snapshots_client import \
     SnapshotsClient as ComputeSnapshotsClient
@@ -70,14 +77,7 @@ from tempest import exceptions
 from tempest import manager
 from tempest.services.baremetal.v1.json.baremetal_client import \
     BaremetalClient
-from tempest.services.compute.json.floating_ips_client import \
-    FloatingIPsClient as ComputeFloatingIPsClient
 from tempest.services.compute.json.keypairs_client import KeyPairsClient
-from tempest.services.compute.json.security_group_rules_client import \
-    SecurityGroupRulesClient
-from tempest.services.compute.json.server_groups_client import \
-    ServerGroupsClient
-from tempest.services.compute.json.servers_client import ServersClient
 from tempest.services.data_processing.v1_1.data_processing_client import \
     DataProcessingClient
 from tempest.services.database.json.flavors_client import \
@@ -103,8 +103,8 @@ from tempest.services.identity.v3.json.policy_client import \
     PolicyClient as PolicyV3Client
 from tempest.services.identity.v3.json.region_client import \
     RegionClient as RegionV3Client
-from tempest.services.identity.v3.json.service_client import \
-    ServiceClient as ServiceV3Client
+from tempest.services.identity.v3.json.services_client import \
+    ServicesClient as IdentityServicesV3Client
 from tempest.services.image.v1.json.images_client import ImagesClient
 from tempest.services.image.v2.json.images_client import ImagesClientV2
 from tempest.services.messaging.json.messaging_client import \
@@ -119,6 +119,8 @@ from tempest.services.network.json.networks_client import NetworksClient
 from tempest.services.network.json.ports_client import PortsClient
 from tempest.services.network.json.quotas_client import QuotasClient \
     as NetworkQuotasClient
+from tempest.services.network.json.security_groups_client import \
+    SecurityGroupsClient
 from tempest.services.network.json.subnets_client import SubnetsClient
 from tempest.services.object_storage.account_client import AccountClient
 from tempest.services.object_storage.container_client import ContainerClient
@@ -259,6 +261,14 @@ class Manager(manager.Manager):
             build_timeout=CONF.network.build_timeout,
             **self.default_params)
         self.metering_label_rules_client = MeteringLabelRulesClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
+        self.security_groups_client = SecurityGroupsClient(
             self.auth_provider,
             CONF.network.catalog_type,
             CONF.network.region or CONF.identity.region,
@@ -448,7 +458,8 @@ class Manager(manager.Manager):
                                                    **params_v3)
         self.endpoints_client = EndPointV3Client(self.auth_provider,
                                                  **params_v3)
-        self.service_client = ServiceV3Client(self.auth_provider, **params_v3)
+        self.identity_services_client = IdentityServicesV3Client(
+            self.auth_provider, **params_v3)
         self.policy_client = PolicyV3Client(self.auth_provider, **params_v3)
         self.region_client = RegionV3Client(self.auth_provider, **params_v3)
         self.credentials_client = CredentialsV3Client(self.auth_provider,
