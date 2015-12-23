@@ -35,28 +35,6 @@ class NetworkClient(base.BaseNetworkClient):
     quotas
     """
 
-    def create_security_group(self, **kwargs):
-        uri = '/security-groups'
-        post_data = {'security_group': kwargs}
-        return self.create_resource(uri, post_data)
-
-    def update_security_group(self, security_group_id, **kwargs):
-        uri = '/security-groups/%s' % security_group_id
-        post_data = {'security_group': kwargs}
-        return self.update_resource(uri, post_data)
-
-    def show_security_group(self, security_group_id, **fields):
-        uri = '/security-groups/%s' % security_group_id
-        return self.show_resource(uri, **fields)
-
-    def delete_security_group(self, security_group_id):
-        uri = '/security-groups/%s' % security_group_id
-        return self.delete_resource(uri)
-
-    def list_security_groups(self, **filters):
-        uri = '/security-groups'
-        return self.list_resources(uri, **filters)
-
     def create_security_group_rule(self, **kwargs):
         uri = '/security-group-rules'
         post_data = {'security_group_rule': kwargs}
@@ -82,21 +60,32 @@ class NetworkClient(base.BaseNetworkClient):
         uri = '/extensions'
         return self.list_resources(uri, **filters)
 
-    def create_bulk_network(self, names):
-        network_list = [{'name': name} for name in names]
-        post_data = {'networks': network_list}
+    def create_bulk_network(self, **kwargs):
+        """create bulk network
+
+        Available params: see http://developer.openstack.org/
+                              api-ref-networking-v2.html#bulkCreateNetwork
+        """
         uri = '/networks'
-        return self.create_resource(uri, post_data)
+        return self.create_resource(uri, kwargs)
 
-    def create_bulk_subnet(self, subnet_list):
-        post_data = {'subnets': subnet_list}
+    def create_bulk_subnet(self, **kwargs):
+        """create bulk subnet
+
+        Available params: see http://developer.openstack.org/
+                              api-ref-networking-v2.html#bulkCreateSubnet
+        """
         uri = '/subnets'
-        return self.create_resource(uri, post_data)
+        return self.create_resource(uri, kwargs)
 
-    def create_bulk_port(self, port_list):
-        post_data = {'ports': port_list}
+    def create_bulk_port(self, **kwargs):
+        """create bulk port
+
+        Available params: see http://developer.openstack.org/
+                              api-ref-networking-v2.html#bulkCreatePorts
+        """
         uri = '/ports'
-        return self.create_resource(uri, post_data)
+        return self.create_resource(uri, kwargs)
 
     def wait_for_resource_deletion(self, resource_type, id, client=None):
         """Waits for a resource to be deleted."""
@@ -313,10 +302,13 @@ class NetworkClient(base.BaseNetworkClient):
         }
         return self.update_resource(uri, put_body)
 
-    def add_dhcp_agent_to_network(self, agent_id, network_id):
-        post_body = {'network_id': network_id}
+    def add_dhcp_agent_to_network(self, agent_id, **kwargs):
+        # TODO(piyush): Current api-site doesn't contain this API description.
+        # After fixing the api-site, we need to fix here also for putting the
+        # link to api-site.
+        # LP: https://bugs.launchpad.net/openstack-api-site/+bug/1526212
         uri = '/agents/%s/dhcp-networks' % agent_id
-        return self.create_resource(uri, post_body)
+        return self.create_resource(uri, kwargs)
 
     def list_subnetpools(self, **filters):
         uri = '/subnetpools'
