@@ -30,7 +30,7 @@ class BaseIdentityTest(tempest.test.BaseTestCase):
     @classmethod
     def disable_user(cls, user_name):
         user = cls.get_user_by_name(user_name)
-        cls.client.enable_disable_user(user['id'], False)
+        cls.client.enable_disable_user(user['id'], enabled=False)
 
     @classmethod
     def disable_tenant(cls, tenant_name):
@@ -143,9 +143,9 @@ class BaseIdentityV3AdminTest(BaseIdentityV3Test):
         cls.client = cls.os_adm.identity_v3_client
         cls.token = cls.os_adm.token_v3_client
         cls.endpoints_client = cls.os_adm.endpoints_client
-        cls.region_client = cls.os_adm.region_client
+        cls.regions_client = cls.os_adm.regions_client
         cls.services_client = cls.os_adm.identity_services_client
-        cls.policy_client = cls.os_adm.policy_client
+        cls.policies_client = cls.os_adm.policies_client
         cls.creds_client = cls.os_adm.credentials_client
         cls.groups_client = cls.os_adm.groups_client
 
@@ -237,7 +237,8 @@ class DataGenerator(object):
         def setup_test_role(self):
             """Set up a test role."""
             self.test_role = data_utils.rand_name('role')
-            self.role = self.roles_client.create_role(self.test_role)['role']
+            self.role = self.roles_client.create_role(
+                name=self.test_role)['role']
             self.roles.append(self.role)
 
         def setup_test_v3_user(self):
@@ -265,7 +266,7 @@ class DataGenerator(object):
         def setup_test_v3_role(self):
             """Set up a test v3 role."""
             self.test_role = data_utils.rand_name('role')
-            self.v3_role = self.client.create_role(self.test_role)['role']
+            self.v3_role = self.client.create_role(name=self.test_role)['role']
             self.v3_roles.append(self.v3_role)
 
         def setup_test_domain(self):
