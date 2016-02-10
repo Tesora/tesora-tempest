@@ -38,9 +38,9 @@ class UsersNegativeTest(base.BaseIdentityV3AdminTest):
     @test.idempotent_id('b3c9fccc-4134-46f5-b600-1da6fb0a3b1f')
     def test_authentication_for_disabled_user(self):
         # Attempt to authenticate for disabled user should fail
-        self.data.setup_test_v3_user()
-        self.disable_user(self.data.test_user)
+        self.data.setup_test_user()
+        self.disable_user(self.data.user['name'])
         self.assertRaises(lib_exc.Unauthorized, self.token.auth,
-                          username=self.data.test_user,
-                          password=self.data.test_password,
+                          username=self.data.user['name'],
+                          password=self.data.user_password,
                           user_domain_id='default')

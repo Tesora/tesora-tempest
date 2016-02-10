@@ -16,7 +16,6 @@ import logging
 import netaddr
 
 from tempest.api.orchestration import base
-from tempest.common import credentials_factory as credentials
 from tempest.common.utils import data_utils
 from tempest import config
 from tempest import exceptions
@@ -34,11 +33,6 @@ class NeutronResourcesTestJSON(base.BaseOrchestrationTest):
         super(NeutronResourcesTestJSON, cls).skip_checks()
         if not CONF.service_available.neutron:
             raise cls.skipException("Neutron support is required")
-
-    @classmethod
-    def setup_credentials(cls):
-        super(NeutronResourcesTestJSON, cls).setup_credentials()
-        cls.os = credentials.ConfiguredUserManager()
 
     @classmethod
     def setup_clients(cls):

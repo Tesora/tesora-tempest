@@ -19,7 +19,6 @@ import os
 import re
 import sys
 import time
-import urllib
 import uuid
 
 import fixtures
@@ -27,6 +26,7 @@ from oslo_log import log as logging
 from oslo_serialization import jsonutils as json
 from oslo_utils import importutils
 import six
+from six.moves import urllib
 from tempest_lib import decorators
 import testscenarios
 import testtools
@@ -226,6 +226,7 @@ class BaseTestCase(testtools.testcase.WithAttributes,
     # Resources required to validate a server using ssh
     validation_resources = {}
     network_resources = {}
+    services_microversion = {}
 
     # NOTE(sdague): log_format is defined inline here instead of using the oslo
     # default because going through the config path recouples config to the
@@ -292,7 +293,7 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                     LOG.exception("teardown of %s failed: %s" % (name, te))
                 if not etype:
                     etype, value, trace = sys_exec_info
-        # If exceptions were raised during teardown, an not before, re-raise
+        # If exceptions were raised during teardown, and not before, re-raise
         # the first one
         if re_raise and etype is not None:
             try:
@@ -375,8 +376,8 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             cls.validation_resources = vresources.create_validation_resources(
                 cls.os, cls.validation_resources)
         else:
-            LOG.warn("Client manager not found, validation resources not"
-                     " created")
+            LOG.warning("Client manager not found, validation resources not"
+                        " created")
 
     @classmethod
     def resource_cleanup(cls):
@@ -391,8 +392,8 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                                                       cls.validation_resources)
                 cls.validation_resources = {}
             else:
-                LOG.warn("Client manager not found, validation resources not"
-                         " deleted")
+                LOG.warning("Client manager not found, validation resources "
+                            "not deleted")
 
     def setUp(self):
         super(BaseTestCase, self).setUp()
@@ -438,10 +439,12 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             client = self.os_admin.identity_client
             project_client = self.os_admin.tenants_client
             roles_client = self.os_admin.roles_client
+            users_client = self.os_admin.users_client
         else:
             client = self.os_admin.identity_v3_client
             project_client = None
             roles_client = None
+            users_client = None
 
         try:
             domain = client.auth_provider.credentials.project_domain_name
@@ -450,6 +453,7 @@ class BaseTestCase(testtools.testcase.WithAttributes,
 
         return cred_client.get_creds_client(client, project_client,
                                             roles_client,
+                                            users_client,
                                             project_domain_name=domain)
 
     @classmethod
@@ -515,7 +519,8 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             else:
                 raise exceptions.InvalidCredentials(
                     "Invalid credentials type %s" % credential_type)
-        return clients.Manager(credentials=creds, service=cls._service)
+        return clients.Manager(credentials=creds, service=cls._service,
+                               api_microversions=cls.services_microversion)
 
     @classmethod
     def clear_credentials(cls):
@@ -595,14 +600,15 @@ class BaseTestCase(testtools.testcase.WithAttributes,
         networks_client = cls.get_client_manager().compute_networks_client
         cred_provider = cls._get_credentials_provider()
         # In case of nova network, isolated tenants are not able to list the
-        # network configured in fixed_network_name, even if the can use it
+        # network configured in fixed_network_name, even if they can use it
         # for their servers, so using an admin network client to validate
         # the network name
         if (not CONF.service_available.neutron and
                 credentials.is_admin_available(
                     identity_version=cls.get_identity_version())):
             admin_creds = cred_provider.get_admin_creds()
-            admin_manager = clients.Manager(admin_creds)
+            admin_manager = clients.Manager(
+                admin_creds, api_microversions=cls.services_microversion)
             networks_client = admin_manager.compute_networks_client
         return fixed_network.get_tenant_network(
             cred_provider, networks_client, CONF.compute.fixed_network_name)
@@ -770,7 +776,7 @@ class NegativeAutoTest(BaseTestCase):
         if not json_dict:
             return url, None
         elif method in ["GET", "HEAD", "PUT", "DELETE"]:
-            return "%s?%s" % (url, urllib.urlencode(json_dict)), None
+            return "%s?%s" % (url, urllib.parse.urlencode(json_dict)), None
         else:
             return url, json.dumps(json_dict)
 
@@ -784,9 +790,9 @@ class NegativeAutoTest(BaseTestCase):
 
     @classmethod
     def set_resource(cls, name, resource):
-        """Register a resoruce for a test
+        """Register a resource for a test
 
-        This function can be used in setUpClass context to register a resoruce
+        This function can be used in setUpClass context to register a resource
         for a test.
 
         :param name: The name of the kind of resource such as "flavor", "role",

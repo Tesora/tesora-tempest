@@ -240,8 +240,8 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
         old_floating_ip, server = self.floating_ip_tuple
         ip_address = old_floating_ip.floating_ip_address
         private_key = self._get_server_key(server)
-        ssh_client = self.get_remote_client(ip_address,
-                                            private_key=private_key)
+        ssh_client = self.get_remote_client(
+            ip_address, private_key=private_key)
         old_nic_list = self._get_server_nics(ssh_client)
         # get a port from a list of one item
         port_list = self._list_ports(device_id=server['id'])
@@ -336,7 +336,8 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
                                    should_connect=True):
         ip_address = floating_ip.floating_ip_address
         private_key = self._get_server_key(self.floating_ip_tuple.server)
-        ssh_source = self._ssh_to_server(ip_address, private_key)
+        ssh_source = self.get_remote_client(
+            ip_address, private_key=private_key)
 
         for remote_ip in address_list:
             if should_connect:
@@ -553,7 +554,8 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
         floating_ip, server = self.floating_ip_tuple
         ip_address = floating_ip.floating_ip_address
         private_key = self._get_server_key(server)
-        ssh_client = self._ssh_to_server(ip_address, private_key)
+        ssh_client = self.get_remote_client(
+            ip_address, private_key=private_key)
 
         dns_servers = [initial_dns_server]
         servers = ssh_client.get_dns_servers()
@@ -683,10 +685,10 @@ class TestNetworkBasicOps(manager.NetworkScenarioTest):
 
         list_hosts = (self.admin_manager.network_client.
                       list_l3_agents_hosting_router)
-        schedule_router = (self.admin_manager.network_client.
-                           add_router_to_l3_agent)
-        unschedule_router = (self.admin_manager.network_client.
-                             remove_router_from_l3_agent)
+        schedule_router = (self.admin_manager.network_agents_client.
+                           create_router_on_l3_agent)
+        unschedule_router = (self.admin_manager.network_agents_client.
+                             delete_router_from_l3_agent)
 
         agent_list = set(a["id"] for a in
                          self._list_agents(agent_type="L3 agent"))

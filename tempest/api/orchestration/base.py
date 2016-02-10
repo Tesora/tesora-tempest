@@ -12,7 +12,6 @@
 
 import os.path
 
-from oslo_log import log as logging
 from tempest_lib import exceptions as lib_exc
 import yaml
 
@@ -21,8 +20,6 @@ from tempest import config
 import tempest.test
 
 CONF = config.CONF
-
-LOG = logging.getLogger(__name__)
 
 
 class BaseOrchestrationTest(tempest.test.BaseTestCase):
@@ -35,12 +32,6 @@ class BaseOrchestrationTest(tempest.test.BaseTestCase):
         super(BaseOrchestrationTest, cls).skip_checks()
         if not CONF.service_available.heat:
             raise cls.skipException("Heat support is required")
-
-    @classmethod
-    def setup_credentials(cls):
-        super(BaseOrchestrationTest, cls).setup_credentials()
-        stack_owner_role = CONF.orchestration.stack_owner_role
-        cls.os = cls.get_client_manager(roles=[stack_owner_role])
 
     @classmethod
     def setup_clients(cls):
