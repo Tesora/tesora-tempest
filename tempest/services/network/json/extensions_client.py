@@ -1,5 +1,3 @@
-# Copyright 2015 NEC Corporation.  All rights reserved.
-#
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
@@ -12,14 +10,15 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-from tempest.common import service_client
+from tempest.services.network.json import base
 
 
-class BaseComputeClient(service_client.ServiceClient):
-    api_microversion = None
+class ExtensionsClient(base.BaseNetworkClient):
 
-    def get_headers(self):
-        headers = super(BaseComputeClient, self).get_headers()
-        if self.api_microversion:
-            headers['X-OpenStack-Nova-API-Version'] = self.api_microversion
-        return headers
+    def show_extension(self, ext_alias, **fields):
+        uri = '/extensions/%s' % ext_alias
+        return self.show_resource(uri, **fields)
+
+    def list_extensions(self, **filters):
+        uri = '/extensions'
+        return self.list_resources(uri, **filters)

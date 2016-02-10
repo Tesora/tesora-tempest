@@ -128,7 +128,7 @@ class UsersV3TestJSON(base.BaseIdentityV3AdminTest):
             project_body = self.client.create_project(
                 data_utils.rand_name('project'),
                 description=data_utils.rand_name('project-desc'))['project']
-            project = self.client.get_project(project_body['id'])['project']
+            project = self.client.show_project(project_body['id'])['project']
             # Delete the Project at the end of this method
             self.addCleanup(self.client.delete_project, project_body['id'])
             # Assigning roles to user on project
@@ -151,6 +151,6 @@ class UsersV3TestJSON(base.BaseIdentityV3AdminTest):
     @test.idempotent_id('c10dcd90-461d-4b16-8e23-4eb836c00644')
     def test_get_user(self):
         # Get a user detail
-        self.data.setup_test_v3_user()
-        user = self.client.show_user(self.data.v3_user['id'])['user']
-        self.assertEqual(self.data.v3_user['id'], user['id'])
+        self.data.setup_test_user()
+        user = self.client.show_user(self.data.user['id'])['user']
+        self.assertEqual(self.data.user['id'], user['id'])

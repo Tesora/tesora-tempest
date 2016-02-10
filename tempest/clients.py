@@ -52,7 +52,7 @@ from tempest_lib.services.compute.quotas_client import QuotasClient
 from tempest_lib.services.compute.security_group_default_rules_client import \
     SecurityGroupDefaultRulesClient
 from tempest_lib.services.compute.security_group_rules_client import \
-    SecurityGroupRulesClient
+    SecurityGroupRulesClient as ComputeSecurityGroupRulesClient
 from tempest_lib.services.compute.security_groups_client import \
     SecurityGroupsClient as ComputeSecurityGroupsClient
 from tempest_lib.services.compute.server_groups_client import \
@@ -70,6 +70,14 @@ from tempest_lib.services.compute.volumes_client import \
     VolumesClient as ComputeVolumesClient
 from tempest_lib.services.identity.v2.token_client import TokenClient
 from tempest_lib.services.identity.v3.token_client import V3TokenClient
+from tempest_lib.services.network.floating_ips_client import FloatingIPsClient
+from tempest_lib.services.network.metering_label_rules_client import \
+    MeteringLabelRulesClient
+from tempest_lib.services.network.metering_labels_client import \
+    MeteringLabelsClient
+from tempest_lib.services.network.networks_client import NetworksClient
+from tempest_lib.services.network.ports_client import PortsClient
+from tempest_lib.services.network.subnets_client import SubnetsClient
 
 from tempest.common import negative_rest_client
 from tempest import config
@@ -86,12 +94,18 @@ from tempest.services.database.json.limits_client import \
     DatabaseLimitsClient
 from tempest.services.database.json.versions_client import \
     DatabaseVersionsClient
+from tempest.services.identity.v2.json.endpoints_client import \
+    EndpointsClient as EndpointsV2Client
 from tempest.services.identity.v2.json.identity_client import \
     IdentityClient
 from tempest.services.identity.v2.json.roles_client import \
     RolesClient
+from tempest.services.identity.v2.json.services_client import \
+    ServicesClient as ServicesV2Client
 from tempest.services.identity.v2.json.tenants_client import \
     TenantsClient
+from tempest.services.identity.v2.json.users_client import \
+    UsersClient
 from tempest.services.identity.v3.json.credentials_client import \
     CredentialsClient as CredentialsV3Client
 from tempest.services.identity.v3.json.endpoints_client import \
@@ -109,19 +123,18 @@ from tempest.services.image.v1.json.images_client import ImagesClient
 from tempest.services.image.v2.json.images_client import ImagesClientV2
 from tempest.services.messaging.json.messaging_client import \
     MessagingClient
-from tempest.services.network.json.floating_ips_client import FloatingIPsClient
-from tempest.services.network.json.metering_label_rules_client import \
-    MeteringLabelRulesClient
-from tempest.services.network.json.metering_labels_client import \
-    MeteringLabelsClient
+from tempest.services.network.json.agents_client import AgentsClient \
+    as NetworkAgentsClient
+from tempest.services.network.json.extensions_client import \
+    ExtensionsClient as NetworkExtensionsClient
 from tempest.services.network.json.network_client import NetworkClient
-from tempest.services.network.json.networks_client import NetworksClient
-from tempest.services.network.json.ports_client import PortsClient
 from tempest.services.network.json.quotas_client import QuotasClient \
     as NetworkQuotasClient
+from tempest.services.network.json.security_group_rules_client import \
+    SecurityGroupRulesClient
 from tempest.services.network.json.security_groups_client import \
     SecurityGroupsClient
-from tempest.services.network.json.subnets_client import SubnetsClient
+from tempest.services.network.json.subnetpools_client import SubnetpoolsClient
 from tempest.services.object_storage.account_client import AccountClient
 from tempest.services.object_storage.container_client import ContainerClient
 from tempest.services.object_storage.object_client import ObjectClient
@@ -189,9 +202,30 @@ class Manager(manager.Manager):
     }
     default_params_with_timeout_values.update(default_params)
 
-    def __init__(self, credentials, service=None):
-        super(Manager, self).__init__(credentials=credentials)
+    def __init__(self, credentials, service=None, api_microversions=None):
+        """Initialization of Manager class.
 
+        Setup all services clients and make them available for tests cases.
+        :param credentials: type Credentials or TestResources
+        :param service: Service name
+        :param api_microversions: This is dict of services catalog type
+               and their microversion which will be set on respective
+               services clients.
+               {<service catalog type>: request_microversion}
+               Example :
+                {'compute': request_microversion}
+                    - request_microversion will be set on all compute
+                      service clients.
+                OR
+                {'compute': request_microversion,
+                 'volume': request_microversion}
+                    - request_microversion of compute will be set on all
+                      compute service clients.
+                    - request_microversion of volume will be set on all
+                      volume service clients.
+        """
+        super(Manager, self).__init__(credentials=credentials)
+        self.api_microversions = api_microversions or {}
         self._set_compute_clients()
         self._set_database_clients()
         self._set_identity_clients()
@@ -204,6 +238,22 @@ class Manager(manager.Manager):
             CONF.identity.region,
             endpoint_type=CONF.baremetal.endpoint_type,
             **self.default_params_with_timeout_values)
+        self.network_agents_client = NetworkAgentsClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
+        self.network_extensions_client = NetworkExtensionsClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
         self.network_client = NetworkClient(
             self.auth_provider,
             CONF.network.catalog_type,
@@ -213,6 +263,14 @@ class Manager(manager.Manager):
             build_timeout=CONF.network.build_timeout,
             **self.default_params)
         self.networks_client = NetworksClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
+        self.subnetpools_client = SubnetpoolsClient(
             self.auth_provider,
             CONF.network.catalog_type,
             CONF.network.region or CONF.identity.region,
@@ -261,6 +319,14 @@ class Manager(manager.Manager):
             build_timeout=CONF.network.build_timeout,
             **self.default_params)
         self.metering_label_rules_client = MeteringLabelRulesClient(
+            self.auth_provider,
+            CONF.network.catalog_type,
+            CONF.network.region or CONF.identity.region,
+            endpoint_type=CONF.network.endpoint_type,
+            build_interval=CONF.network.build_interval,
+            build_timeout=CONF.network.build_timeout,
+            **self.default_params)
+        self.security_group_rules_client = SecurityGroupRulesClient(
             self.auth_provider,
             CONF.network.catalog_type,
             CONF.network.region or CONF.identity.region,
@@ -329,6 +395,8 @@ class Manager(manager.Manager):
         self.negative_client = negative_rest_client.NegativeRestClient(
             self.auth_provider, service, **self.default_params)
 
+        self._set_api_microversions()
+
     def _set_compute_clients(self):
         params = {
             'service': CONF.compute.catalog_type,
@@ -356,7 +424,8 @@ class Manager(manager.Manager):
         self.server_groups_client = ServerGroupsClient(
             self.auth_provider, **params)
         self.limits_client = LimitsClient(self.auth_provider, **params)
-        self.images_client = ComputeImagesClient(self.auth_provider, **params)
+        self.compute_images_client = ComputeImagesClient(self.auth_provider,
+                                                         **params)
         self.keypairs_client = KeyPairsClient(self.auth_provider, **params)
         self.quotas_client = QuotasClient(self.auth_provider, **params)
         self.quota_classes_client = QuotaClassesClient(self.auth_provider,
@@ -370,8 +439,8 @@ class Manager(manager.Manager):
             self.auth_provider, **params)
         self.compute_floating_ips_client = ComputeFloatingIPsClient(
             self.auth_provider, **params)
-        self.security_group_rules_client = SecurityGroupRulesClient(
-            self.auth_provider, **params)
+        self.compute_security_group_rules_client = \
+            ComputeSecurityGroupRulesClient(self.auth_provider, **params)
         self.compute_security_groups_client = ComputeSecurityGroupsClient(
             self.auth_provider, **params)
         self.interfaces_client = InterfacesClient(self.auth_provider,
@@ -432,28 +501,37 @@ class Manager(manager.Manager):
             'region': CONF.identity.region
         }
         params.update(self.default_params_with_timeout_values)
+
+        # Clients below use the admin endpoint type of Keystone API v2
         params_v2_admin = params.copy()
         params_v2_admin['endpoint_type'] = CONF.identity.v2_admin_endpoint_type
-        # Client uses admin endpoint type of Keystone API v2
+        self.endpoints_v2_client = EndpointsV2Client(self.auth_provider,
+                                                     **params_v2_admin)
         self.identity_client = IdentityClient(self.auth_provider,
                                               **params_v2_admin)
         self.tenants_client = TenantsClient(self.auth_provider,
                                             **params_v2_admin)
         self.roles_client = RolesClient(self.auth_provider,
                                         **params_v2_admin)
+        self.users_client = UsersClient(self.auth_provider,
+                                        **params_v2_admin)
+        self.services_v2_client = ServicesV2Client(self.auth_provider,
+                                                   **params_v2_admin)
+
+        # Clients below use the public endpoint type of Keystone API v2
         params_v2_public = params.copy()
         params_v2_public['endpoint_type'] = (
             CONF.identity.v2_public_endpoint_type)
-        # Client uses public endpoint type of Keystone API v2
         self.identity_public_client = IdentityClient(self.auth_provider,
                                                      **params_v2_public)
         self.tenants_public_client = TenantsClient(self.auth_provider,
                                                    **params_v2_public)
-        self.roles_public_client = RolesClient(self.auth_provider,
+        self.users_public_client = UsersClient(self.auth_provider,
                                                **params_v2_public)
+
+        # Clients below use the endpoint type of Keystone API v3
         params_v3 = params.copy()
         params_v3['endpoint_type'] = CONF.identity.v3_endpoint_type
-        # Clients below use the endpoint type of Keystone API v3
         self.identity_v3_client = IdentityV3Client(self.auth_provider,
                                                    **params_v3)
         self.endpoints_client = EndPointV3Client(self.auth_provider,
@@ -466,6 +544,7 @@ class Manager(manager.Manager):
         self.credentials_client = CredentialsV3Client(self.auth_provider,
                                                       **params_v3)
         self.groups_client = GroupsV3Client(self.auth_provider, **params_v3)
+
         # Token clients do not use the catalog. They only need default_params.
         # They read auth_url, so they should only be set if the corresponding
         # API version is marked as enabled
@@ -547,3 +626,15 @@ class Manager(manager.Manager):
         self.account_client = AccountClient(self.auth_provider, **params)
         self.container_client = ContainerClient(self.auth_provider, **params)
         self.object_client = ObjectClient(self.auth_provider, **params)
+
+    def _set_api_microversions(self):
+        service_clients = [x for x in self.__dict__ if x.endswith('_client')]
+        for client in service_clients:
+            client_obj = getattr(self, client)
+            microversion = self.api_microversions.get(client_obj.service)
+            if microversion:
+                if hasattr(client_obj, 'set_api_microversion'):
+                    client_obj.set_api_microversion(microversion)
+                else:
+                    LOG.debug("Need to implement set_api_microversion on %s"
+                              % client)
