@@ -78,7 +78,7 @@ def init_conf():
 
     if IS_NEUTRON:
         CONF_PRIV_NETWORK = _get_network_id(CONF.compute.fixed_network_name,
-                                            CONF.identity.tenant_name)
+                                            CONF.auth.admin_tenant_name)
         CONF_NETWORKS = [CONF_PUB_NETWORK, CONF_PRIV_NETWORK]
 
 
@@ -940,7 +940,7 @@ class DomainService(BaseService):
 
     def __init__(self, manager, **kwargs):
         super(DomainService, self).__init__(kwargs)
-        self.client = manager.identity_v3_client
+        self.client = manager.domains_client
 
     def list(self):
         client = self.client

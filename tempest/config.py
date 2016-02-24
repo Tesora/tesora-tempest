@@ -352,13 +352,6 @@ ComputeFeaturesGroup = [
                 help="Does the test environment block migration support "
                 "cinder iSCSI volumes. Note, libvirt doesn't support this, "
                 "see https://bugs.launchpad.net/nova/+bug/1398999"),
-    # TODO(gilliard): Remove live_migrate_paused_instances at juno-eol.
-    cfg.BoolOpt('live_migrate_paused_instances',
-                default=False,
-                help="Does the test system allow live-migration of paused "
-                "instances? Note, this is more than just the ANDing of "
-                "paused and live_migrate, but all 3 should be set to True "
-                "to run those tests"),
     cfg.BoolOpt('vnc_console',
                 default=False,
                 help='Enable VNC console. This configuration value should '
@@ -394,12 +387,6 @@ ComputeFeaturesGroup = [
     cfg.BoolOpt('personality',
                 default=True,
                 help='Does the test environment support server personality'),
-    # TODO(mriedem): Remove preserve_ports once juno-eol happens.
-    cfg.BoolOpt('preserve_ports',
-                default=False,
-                help='Does Nova preserve preexisting ports from Neutron '
-                     'when deleting an instance? This should be set to True '
-                     'if testing Kilo+ Nova.'),
     cfg.BoolOpt('attach_encrypted_volume',
                 default=True,
                 help='Does the test environment support attaching an '
@@ -572,41 +559,6 @@ NetworkFeaturesGroup = [
                 default=True,
                 help="Does the test environment support changing"
                      " port admin state"),
-]
-
-messaging_group = cfg.OptGroup(name='messaging',
-                               title='Messaging Service')
-
-MessagingGroup = [
-    cfg.StrOpt('catalog_type',
-               default='messaging',
-               help='Catalog type of the Messaging service.'),
-    cfg.IntOpt('max_queues_per_page',
-               default=20,
-               help='The maximum number of queue records per page when '
-                    'listing queues'),
-    cfg.IntOpt('max_queue_metadata',
-               default=65536,
-               help='The maximum metadata size for a queue'),
-    cfg.IntOpt('max_messages_per_page',
-               default=20,
-               help='The maximum number of queue message per page when '
-                    'listing (or) posting messages'),
-    cfg.IntOpt('max_message_size',
-               default=262144,
-               help='The maximum size of a message body'),
-    cfg.IntOpt('max_messages_per_claim',
-               default=20,
-               help='The maximum number of messages per claim'),
-    cfg.IntOpt('max_message_ttl',
-               default=1209600,
-               help='The maximum ttl for a message'),
-    cfg.IntOpt('max_claim_ttl',
-               default=43200,
-               help='The maximum ttl for a claim'),
-    cfg.IntOpt('max_claim_grace',
-               default=43200,
-               help='The maximum grace period for a claim'),
 ]
 
 validation_group = cfg.OptGroup(name='validation',
@@ -788,7 +740,11 @@ VolumeFeaturesGroup = [
                 default=True,
                 help='Update bootable status of a volume '
                      'Not implemented on icehouse ',
-                deprecated_for_removal=True)
+                deprecated_for_removal=True),
+    # TODO(ynesenenko): Remove volume_services once liberty-eol happens.
+    cfg.BoolOpt('volume_services',
+                default=False,
+                help='Extract correct host info from host@backend')
 ]
 
 
@@ -1126,9 +1082,6 @@ ServiceAvailableGroup = [
     cfg.BoolOpt('trove',
                 default=False,
                 help="Whether or not Trove is expected to be available"),
-    cfg.BoolOpt('zaqar',
-                default=False,
-                help="Whether or not Zaqar is expected to be available"),
 ]
 
 debug_group = cfg.OptGroup(name="debug",
@@ -1255,7 +1208,6 @@ _opts = [
     (image_feature_group, ImageFeaturesGroup),
     (network_group, NetworkGroup),
     (network_feature_group, NetworkFeaturesGroup),
-    (messaging_group, MessagingGroup),
     (validation_group, ValidationGroup),
     (volume_group, VolumeGroup),
     (volume_feature_group, VolumeFeaturesGroup),
@@ -1331,7 +1283,6 @@ class TempestConfigPrivate(object):
             'object-storage-feature-enabled']
         self.database = _CONF.database
         self.orchestration = _CONF.orchestration
-        self.messaging = _CONF.messaging
         self.telemetry = _CONF.telemetry
         self.telemetry_feature_enabled = _CONF['telemetry-feature-enabled']
         self.dashboard = _CONF.dashboard
@@ -1384,7 +1335,8 @@ class TempestConfigPrivate(object):
             _CONF([], project='tempest')
 
         logging_cfg_path = "%s/logging.conf" % os.path.dirname(path)
-        if (not hasattr(_CONF, 'log_config_append') and
+        if ((not hasattr(_CONF, 'log_config_append') or
+            _CONF.log_config_append is None) and
             os.path.isfile(logging_cfg_path)):
             # if logging conf is in place we need to set log_config_append
             _CONF.log_config_append = logging_cfg_path

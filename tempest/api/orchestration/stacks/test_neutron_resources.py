@@ -30,9 +30,16 @@ class NeutronResourcesTestJSON(base.BaseOrchestrationTest):
 
     @classmethod
     def skip_checks(cls):
+        msg = "Skipped until Bug: 1547261 is resolved."
+        raise cls.skipException(msg)
         super(NeutronResourcesTestJSON, cls).skip_checks()
         if not CONF.service_available.neutron:
             raise cls.skipException("Neutron support is required")
+
+    @classmethod
+    def setup_credentials(cls):
+        cls.set_network_resources()
+        super(NeutronResourcesTestJSON, cls).setup_credentials()
 
     @classmethod
     def setup_clients(cls):
