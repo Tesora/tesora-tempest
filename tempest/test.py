@@ -226,13 +226,15 @@ class BaseTestCase(testtools.testcase.WithAttributes,
     # Resources required to validate a server using ssh
     validation_resources = {}
     network_resources = {}
-    services_microversion = {}
 
     # NOTE(sdague): log_format is defined inline here instead of using the oslo
     # default because going through the config path recouples config to the
     # stress tests too early, and depending on testr order will fail unit tests
     log_format = ('%(asctime)s %(process)d %(levelname)-8s '
                   '[%(name)s] %(message)s')
+
+    # Client manager class to use in this test case.
+    client_manager = clients.Manager
 
     @classmethod
     def setUpClass(cls):
@@ -437,14 +439,16 @@ class BaseTestCase(testtools.testcase.WithAttributes,
         """
         if CONF.identity.auth_version == 'v2':
             client = self.os_admin.identity_client
+            users_client = self.os_admin.users_client
             project_client = self.os_admin.tenants_client
             roles_client = self.os_admin.roles_client
-            users_client = self.os_admin.users_client
+            domains_client = None
         else:
             client = self.os_admin.identity_v3_client
-            project_client = None
+            project_client = self.os_adm.projects_client
+            users_client = self.os_admin.users_v3_client
             roles_client = None
-            users_client = None
+            domains_client = self.os_admin.domains_client
 
         try:
             domain = client.auth_provider.credentials.project_domain_name
@@ -452,8 +456,9 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             domain = 'Default'
 
         return cred_client.get_creds_client(client, project_client,
-                                            roles_client,
                                             users_client,
+                                            roles_client,
+                                            domains_client,
                                             project_domain_name=domain)
 
     @classmethod
@@ -519,8 +524,7 @@ class BaseTestCase(testtools.testcase.WithAttributes,
             else:
                 raise exceptions.InvalidCredentials(
                     "Invalid credentials type %s" % credential_type)
-        return clients.Manager(credentials=creds, service=cls._service,
-                               api_microversions=cls.services_microversion)
+        return cls.client_manager(credentials=creds, service=cls._service)
 
     @classmethod
     def clear_credentials(cls):
@@ -607,8 +611,7 @@ class BaseTestCase(testtools.testcase.WithAttributes,
                 credentials.is_admin_available(
                     identity_version=cls.get_identity_version())):
             admin_creds = cred_provider.get_admin_creds()
-            admin_manager = clients.Manager(
-                admin_creds, api_microversions=cls.services_microversion)
+            admin_manager = clients.Manager(admin_creds)
             networks_client = admin_manager.compute_networks_client
         return fixed_network.get_tenant_network(
             cred_provider, networks_client, CONF.compute.fixed_network_name)

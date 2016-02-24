@@ -32,17 +32,17 @@ class RolesV3TestJSON(base.BaseIdentityV3AdminTest):
         u_desc = '%s description' % u_name
         u_email = '%s@testmail.tm' % u_name
         cls.u_password = data_utils.rand_password()
-        cls.domain = cls.client.create_domain(
+        cls.domain = cls.domains_client.create_domain(
             data_utils.rand_name('domain'),
             description=data_utils.rand_name('domain-desc'))['domain']
-        cls.project = cls.client.create_project(
+        cls.project = cls.projects_client.create_project(
             data_utils.rand_name('project'),
             description=data_utils.rand_name('project-desc'),
             domain_id=cls.domain['id'])['project']
         cls.group_body = cls.groups_client.create_group(
             name=data_utils.rand_name('Group'), project_id=cls.project['id'],
             domain_id=cls.domain['id'])['group']
-        cls.user_body = cls.client.create_user(
+        cls.user_body = cls.users_client.create_user(
             u_name, description=u_desc, password=cls.u_password,
             email=u_email, project_id=cls.project['id'],
             domain_id=cls.domain['id'])['user']
@@ -53,12 +53,12 @@ class RolesV3TestJSON(base.BaseIdentityV3AdminTest):
     def resource_cleanup(cls):
         cls.client.delete_role(cls.role['id'])
         cls.groups_client.delete_group(cls.group_body['id'])
-        cls.client.delete_user(cls.user_body['id'])
-        cls.client.delete_project(cls.project['id'])
+        cls.users_client.delete_user(cls.user_body['id'])
+        cls.projects_client.delete_project(cls.project['id'])
         # NOTE(harika-vakadi): It is necessary to disable the domain
         # before deleting,or else it would result in unauthorized error
-        cls.client.update_domain(cls.domain['id'], enabled=False)
-        cls.client.delete_domain(cls.domain['id'])
+        cls.domains_client.update_domain(cls.domain['id'], enabled=False)
+        cls.domains_client.delete_domain(cls.domain['id'])
         super(RolesV3TestJSON, cls).resource_cleanup()
 
     def _list_assertions(self, body, fetched_role_ids, role_id):

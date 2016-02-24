@@ -46,8 +46,8 @@ class BaseTrustsV3Test(base.BaseIdentityV3AdminTest):
     def create_trustor_and_roles(self):
         # create a project that trusts will be granted on
         self.trustor_project_name = data_utils.rand_name(name='project')
-        project = self.client.create_project(self.trustor_project_name,
-                                             domain_id='default')['project']
+        project = self.projects_client.create_project(
+            self.trustor_project_name, domain_id='default')['project']
         self.trustor_project_id = project['id']
         self.assertIsNotNone(self.trustor_project_id)
 
@@ -56,7 +56,7 @@ class BaseTrustsV3Test(base.BaseIdentityV3AdminTest):
         u_desc = self.trustor_username + 'description'
         u_email = self.trustor_username + '@testmail.xx'
         self.trustor_password = data_utils.rand_password()
-        user = self.client.create_user(
+        user = self.users_client.create_user(
             self.trustor_username,
             description=u_desc,
             password=self.trustor_password,
@@ -76,12 +76,12 @@ class BaseTrustsV3Test(base.BaseIdentityV3AdminTest):
         self.not_delegated_role_id = role['id']
 
         # Assign roles to trustor
-        self.client.assign_user_role(self.trustor_project_id,
-                                     self.trustor_user_id,
-                                     self.delegated_role_id)
-        self.client.assign_user_role(self.trustor_project_id,
-                                     self.trustor_user_id,
-                                     self.not_delegated_role_id)
+        self.client.assign_user_role_on_project(self.trustor_project_id,
+                                                self.trustor_user_id,
+                                                self.delegated_role_id)
+        self.client.assign_user_role_on_project(self.trustor_project_id,
+                                                self.trustor_user_id,
+                                                self.not_delegated_role_id)
 
         # Get trustee user ID, use the demo user
         trustee_username = self.non_admin_client.user
@@ -97,13 +97,13 @@ class BaseTrustsV3Test(base.BaseIdentityV3AdminTest):
             tenant_name=self.trustor_project_name,
             project_domain_id='default')
         os = clients.Manager(credentials=creds)
-        self.trustor_client = os.identity_v3_client
+        self.trustor_client = os.trusts_client
 
     def cleanup_user_and_roles(self):
         if self.trustor_user_id:
-            self.client.delete_user(self.trustor_user_id)
+            self.users_client.delete_user(self.trustor_user_id)
         if self.trustor_project_id:
-            self.client.delete_project(self.trustor_project_id)
+            self.projects_client.delete_project(self.trustor_project_id)
         if self.delegated_role_id:
             self.client.delete_role(self.delegated_role_id)
         if self.not_delegated_role_id:
@@ -264,7 +264,7 @@ class TrustsV3TestJSON(BaseTrustsV3Test):
     @test.idempotent_id('4773ebd5-ecbf-4255-b8d8-b63e6f72b65d')
     def test_get_trusts_all(self):
         self.create_trust()
-        trusts_get = self.client.list_trusts()['trusts']
+        trusts_get = self.trusts_client.list_trusts()['trusts']
         trusts = [t for t in trusts_get
                   if t['id'] == self.trust_id]
         self.assertEqual(1, len(trusts))

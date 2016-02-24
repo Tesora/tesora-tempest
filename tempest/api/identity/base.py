@@ -48,7 +48,7 @@ class BaseIdentityTest(tempest.test.BaseTestCase):
         try:
             tenants = cls.tenants_client.list_tenants()['tenants']
         except AttributeError:
-            tenants = cls.client.list_projects()['projects']
+            tenants = cls.projects_client.list_projects()['projects']
         tenant = [t for t in tenants if t['name'] == name]
         if len(tenant) > 0:
             return tenant[0]
@@ -129,7 +129,9 @@ class BaseIdentityV3Test(BaseIdentityTest):
     def setup_clients(cls):
         super(BaseIdentityV3Test, cls).setup_clients()
         cls.non_admin_client = cls.os.identity_v3_client
+        cls.non_admin_users_client = cls.os.users_v3_client
         cls.non_admin_token = cls.os.token_v3_client
+        cls.non_admin_projects_client = cls.os.projects_client
 
     @classmethod
     def resource_cleanup(cls):
@@ -144,6 +146,9 @@ class BaseIdentityV3AdminTest(BaseIdentityV3Test):
     def setup_clients(cls):
         super(BaseIdentityV3AdminTest, cls).setup_clients()
         cls.client = cls.os_adm.identity_v3_client
+        cls.domains_client = cls.os_adm.domains_client
+        cls.users_client = cls.os_adm.users_v3_client
+        cls.trusts_client = cls.os_adm.trusts_client
         cls.token = cls.os_adm.token_v3_client
         cls.endpoints_client = cls.os_adm.endpoints_client
         cls.regions_client = cls.os_adm.regions_client
@@ -151,30 +156,18 @@ class BaseIdentityV3AdminTest(BaseIdentityV3Test):
         cls.policies_client = cls.os_adm.policies_client
         cls.creds_client = cls.os_adm.credentials_client
         cls.groups_client = cls.os_adm.groups_client
+        cls.projects_client = cls.os_adm.projects_client
 
     @classmethod
     def resource_setup(cls):
         super(BaseIdentityV3AdminTest, cls).resource_setup()
-        cls.data = DataGeneratorV3(cls.client)
+        cls.data = DataGeneratorV3(cls.client, cls.projects_client,
+                                   cls.users_client, None, cls.domains_client)
 
     @classmethod
     def resource_cleanup(cls):
         cls.data.teardown_all()
         super(BaseIdentityV3AdminTest, cls).resource_cleanup()
-
-    @classmethod
-    def get_user_by_name(cls, name):
-        users = cls.client.list_users()['users']
-        user = [u for u in users if u['name'] == name]
-        if len(user) > 0:
-            return user[0]
-
-    @classmethod
-    def get_tenant_by_name(cls, name):
-        tenants = cls.client.list_projects()['projects']
-        tenant = [t for t in tenants if t['name'] == name]
-        if len(tenant) > 0:
-            return tenant[0]
 
     @classmethod
     def get_role_by_name(cls, name):
@@ -186,23 +179,24 @@ class BaseIdentityV3AdminTest(BaseIdentityV3Test):
     @classmethod
     def disable_user(cls, user_name):
         user = cls.get_user_by_name(user_name)
-        cls.client.update_user(user['id'], user_name, enabled=False)
+        cls.users_client.update_user(user['id'], user_name, enabled=False)
 
     def delete_domain(self, domain_id):
         # NOTE(mpavlase) It is necessary to disable the domain before deleting
         # otherwise it raises Forbidden exception
-        self.client.update_domain(domain_id, enabled=False)
-        self.client.delete_domain(domain_id)
+        self.domains_client.update_domain(domain_id, enabled=False)
+        self.domains_client.delete_domain(domain_id)
 
 
 class BaseDataGenerator(object):
 
-    def __init__(self, client, projects_client=None,
-                 users_client=None, roles_client=None):
+    def __init__(self, client, projects_client,
+                 users_client, roles_client=None, domains_client=None):
         self.client = client
-        self.projects_client = projects_client or client
-        self.users_client = users_client or client
+        self.projects_client = projects_client
+        self.users_client = users_client
         self.roles_client = roles_client or client
+        self.domains_client = domains_client
 
         self.user_password = None
         self.user = None
@@ -251,8 +245,9 @@ class BaseDataGenerator(object):
         for role in self.roles:
             self._try_wrapper(self.roles_client.delete_role, role)
         for domain in self.domains:
-            self._try_wrapper(self.client.update_domain, domain, enabled=False)
-            self._try_wrapper(self.client.delete_domain, domain)
+            self._try_wrapper(self.domains_client.update_domain, domain,
+                              enabled=False)
+            self._try_wrapper(self.domains_client.delete_domain, domain)
 
 
 class DataGeneratorV2(BaseDataGenerator):
@@ -286,7 +281,7 @@ class DataGeneratorV3(BaseDataGenerator):
 
     def setup_test_domain(self):
         """Set up a test domain."""
-        self.domain = self.client.create_domain(
+        self.domain = self.domains_client.create_domain(
             name=data_utils.rand_name('test_domain'),
             description=data_utils.rand_name('desc'))['domain']
         self.domains.append(self.domain)
