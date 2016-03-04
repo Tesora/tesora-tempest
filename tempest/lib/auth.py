@@ -319,14 +319,16 @@ class KeystoneV2AuthProvider(KeystoneAuthProvider):
                     _base_url = ep['endpoints'][0].get(endpoint_type)
                 break
         if _base_url is None:
-            raise exceptions.EndpointNotFound(service)
+            raise exceptions.EndpointNotFound(
+                "service: %s, region: %s, endpoint_type: %s" %
+                (service, region, endpoint_type))
 
         parts = urlparse.urlparse(_base_url)
         if filters.get('api_version', None) is not None:
-            path = "/" + filters['api_version']
-            noversion_path = "/".join(parts.path.split("/")[2:])
-            if noversion_path != "":
-                path += "/" + noversion_path
+            path = re.sub(r'(^|/)+v\d+(?:\.\d+)?',
+                          '/' + filters['api_version'],
+                          parts.path,
+                          count=1)
             _base_url = _base_url.replace(parts.path, path)
         if filters.get('skip_path', None) is not None and parts.path != '':
             _base_url = _base_url.replace(parts.path, "/")
@@ -445,10 +447,10 @@ class KeystoneV3AuthProvider(KeystoneAuthProvider):
 
         parts = urlparse.urlparse(_base_url)
         if filters.get('api_version', None) is not None:
-            path = "/" + filters['api_version']
-            noversion_path = "/".join(parts.path.split("/")[2:])
-            if noversion_path != "":
-                path += "/" + noversion_path
+            path = re.sub(r'(^|/)+v\d+(?:\.\d+)?',
+                          '/' + filters['api_version'],
+                          parts.path,
+                          count=1)
             _base_url = _base_url.replace(parts.path, path)
         if filters.get('skip_path', None) is not None:
             _base_url = _base_url.replace(parts.path, "/")

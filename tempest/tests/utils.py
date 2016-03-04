@@ -1,5 +1,4 @@
-# Copyright 2014 NEC Corporation.
-# All Rights Reserved.
+#    Copyright 2016 OpenStack Foundation
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -12,16 +11,19 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
-
-from oslo_serialization import jsonutils as json
-
-from tempest.lib.common import rest_client
+#
 
 
-class BaseAvailabilityZoneClient(rest_client.RestClient):
+def generate_timeout_series(timeout):
+    """Generate a series of times that exceeds the given timeout.
 
-    def list_availability_zones(self):
-        resp, body = self.get('os-availability-zone')
-        body = json.loads(body)
-        self.expected_success(200, resp.status)
-        return rest_client.ResponseBody(resp, body)
+    Yields a series of fake time.time() floating point numbers
+    such that the difference between each pair in the series just
+    exceeds the timeout value that is passed in.  Useful for
+    mocking time.time() in methods that otherwise wait for timeout
+    seconds.
+    """
+    iteration = 0
+    while True:
+        iteration += 1
+        yield (iteration * timeout) + iteration
