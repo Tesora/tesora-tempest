@@ -382,6 +382,31 @@ class TestKeystoneV2AuthProvider(BaseAuthTestsSetUp):
         expected = 'http://fake_url/'
         self._test_base_url_helper(expected, self.filters)
 
+    def test_base_url_with_unversioned_endpoint(self):
+        auth_data = {
+            'serviceCatalog': [
+                {
+                    'type': 'identity',
+                    'endpoints': [
+                        {
+                            'region': 'FakeRegion',
+                            'publicURL': 'http://fake_url'
+                        }
+                    ]
+                }
+            ]
+        }
+
+        filters = {
+            'service': 'identity',
+            'endpoint_type': 'publicURL',
+            'region': 'FakeRegion',
+            'api_version': 'v2.0'
+        }
+
+        expected = 'http://fake_url/v2.0'
+        self._test_base_url_helper(expected, filters, ('token', auth_data))
+
     def test_token_not_expired(self):
         expiry_data = datetime.datetime.utcnow() + datetime.timedelta(days=1)
         self._verify_expiry(expiry_data=expiry_data, should_be_expired=False)
@@ -478,3 +503,70 @@ class TestKeystoneV3AuthProvider(TestKeystoneV2AuthProvider):
         expected = self._get_result_url_from_endpoint(
             self._endpoints[0]['endpoints'][2])
         self._test_base_url_helper(expected, self.filters)
+
+    # Overwrites v2 test
+    def test_base_url_with_unversioned_endpoint(self):
+        auth_data = {
+            'catalog': [
+                {
+                    'type': 'identity',
+                    'endpoints': [
+                        {
+                            'region': 'FakeRegion',
+                            'url': 'http://fake_url',
+                            'interface': 'public'
+                        }
+                    ]
+                }
+            ]
+        }
+
+        filters = {
+            'service': 'identity',
+            'endpoint_type': 'publicURL',
+            'region': 'FakeRegion',
+            'api_version': 'v3'
+        }
+
+        expected = 'http://fake_url/v3'
+        self._test_base_url_helper(expected, filters, ('token', auth_data))
+
+
+class TestKeystoneV3Credentials(base.TestCase):
+    def testSetAttrUserDomain(self):
+        creds = auth.KeystoneV3Credentials()
+        creds.user_domain_name = 'user_domain'
+        creds.domain_name = 'domain'
+        self.assertEqual('user_domain', creds.user_domain_name)
+        creds = auth.KeystoneV3Credentials()
+        creds.domain_name = 'domain'
+        creds.user_domain_name = 'user_domain'
+        self.assertEqual('user_domain', creds.user_domain_name)
+
+    def testSetAttrProjectDomain(self):
+        creds = auth.KeystoneV3Credentials()
+        creds.project_domain_name = 'project_domain'
+        creds.domain_name = 'domain'
+        self.assertEqual('project_domain', creds.user_domain_name)
+        creds = auth.KeystoneV3Credentials()
+        creds.domain_name = 'domain'
+        creds.project_domain_name = 'project_domain'
+        self.assertEqual('project_domain', creds.project_domain_name)
+
+    def testProjectTenantNoCollision(self):
+        creds = auth.KeystoneV3Credentials(tenant_id='tenant')
+        self.assertEqual('tenant', creds.project_id)
+        creds = auth.KeystoneV3Credentials(project_id='project')
+        self.assertEqual('project', creds.tenant_id)
+        creds = auth.KeystoneV3Credentials(tenant_name='tenant')
+        self.assertEqual('tenant', creds.project_name)
+        creds = auth.KeystoneV3Credentials(project_name='project')
+        self.assertEqual('project', creds.tenant_name)
+
+    def testProjectTenantCollision(self):
+        attrs = {'tenant_id': 'tenant', 'project_id': 'project'}
+        self.assertRaises(
+            exceptions.InvalidCredentials, auth.KeystoneV3Credentials, **attrs)
+        attrs = {'tenant_name': 'tenant', 'project_name': 'project'}
+        self.assertRaises(
+            exceptions.InvalidCredentials, auth.KeystoneV3Credentials, **attrs)
