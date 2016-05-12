@@ -26,7 +26,7 @@ CONF = config.CONF
 
 """This module provides factories of credential and credential providers
 
-Credentials providers and clients are (going to be) part of tempest-lib,
+Credentials providers and clients are (going to be) part of tempest.lib,
 and so they may not hold any dependency to tempest configuration.
 
 Methods in this module collect the relevant configuration details and pass
@@ -133,7 +133,7 @@ class LegacyCredentialProvider(cred_provider.CredentialProvider):
     def get_creds_by_roles(self, roles, force_new=False):
         msg = "Credentials being specified through the config file can not be"\
               " used with tests that specify using credentials by roles. "\
-              "Either exclude/skip the tests doing this or use either an "\
+              "Either exclude/skip the tests doing this or use either a "\
               "test_accounts_file or dynamic credentials."
         raise exceptions.InvalidConfiguration(msg)
 

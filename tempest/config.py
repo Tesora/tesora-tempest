@@ -15,6 +15,7 @@
 
 from __future__ import print_function
 
+import functools
 import logging as std_logging
 import os
 import tempfile
@@ -22,6 +23,7 @@ import tempfile
 from oslo_concurrency import lockutils
 from oslo_config import cfg
 from oslo_log import log as logging
+import testtools
 
 from tempest.test_discover import plugins
 
@@ -91,7 +93,7 @@ AuthGroup = [
                     "create users and projects",
                deprecated_group='identity'),
     cfg.StrOpt('admin_project_name',
-               help="Project name to use for an  administrative user. This is "
+               help="Project name to use for an administrative user. This is "
                     "needed for authenticating requests made by project "
                     "isolation to create users and projects",
                deprecated_opts=[cfg.DeprecatedOpt('admin_tenant_name',
@@ -99,7 +101,7 @@ AuthGroup = [
                                 cfg.DeprecatedOpt('admin_tenant_name',
                                                   group='identity')]),
     cfg.StrOpt('admin_password',
-               help="Password to use for an  administrative user. This is "
+               help="Password to use for an administrative user. This is "
                     "needed for authenticating requests made by project "
                     "isolation to create users and projects",
                secret=True,
@@ -700,22 +702,10 @@ VolumeGroup = [
                choices=['public', 'admin', 'internal',
                         'publicURL', 'adminURL', 'internalURL'],
                help="The endpoint type to use for the volume service."),
-    cfg.StrOpt('backend1_name',
-               default='',
-               help='Name of the backend1 (must be declared in cinder.conf)',
-               deprecated_for_removal=True),
-    cfg.StrOpt('backend2_name',
-               default='',
-               help='Name of the backend2 (must be declared in cinder.conf)',
-               deprecated_for_removal=True),
     cfg.ListOpt('backend_names',
                 default=['BACKEND_1', 'BACKEND_2'],
                 help='A list of backend names separated by comma. '
-                     'The backend name must be declared in cinder.conf',
-                deprecated_opts=[cfg.DeprecatedOpt('BACKEND_1',
-                                                   group='volume'),
-                                 cfg.DeprecatedOpt('BACKEND_2',
-                                                   group='volume')]),
+                     'The backend name must be declared in cinder.conf'),
     cfg.StrOpt('storage_protocol',
                default='iSCSI',
                help='Backend protocol to target when creating volume types'),
@@ -1159,7 +1149,7 @@ baremetal_group = cfg.OptGroup(name='baremetal',
                                     'shelve, snapshot, and suspend')
 
 
-# NOTE(deva): Ironic tests have been ported to tempest-lib. New config options
+# NOTE(deva): Ironic tests have been ported to tempest.lib. New config options
 #             should be added to ironic/ironic_tempest_plugin/config.py.
 #             However, these options need to remain here for testing stable
 #             branches until Liberty release reaches EOL.
@@ -1397,3 +1387,72 @@ class TempestConfigProxy(object):
 
 
 CONF = TempestConfigProxy()
+
+
+def skip_unless_config(*args):
+    """Decorator to raise a skip if a config opt doesn't exist or is False
+
+    :param str group: The first arg, the option group to check
+    :param str name: The second arg, the option name to check
+    :param str msg: Optional third arg, the skip msg to use if a skip is raised
+    :raises testtools.TestCaseskipException: If the specified config option
+        doesn't exist or it exists and evaluates to False
+    """
+    def decorator(f):
+        group = args[0]
+        name = args[1]
+
+        @functools.wraps(f)
+        def wrapper(self, *func_args, **func_kwargs):
+            if not hasattr(CONF, group):
+                msg = "Config group %s doesn't exist" % group
+                raise testtools.TestCase.skipException(msg)
+
+            conf_group = getattr(CONF, group)
+            if not hasattr(conf_group, name):
+                msg = "Config option %s.%s doesn't exist" % (group,
+                                                             name)
+                raise testtools.TestCase.skipException(msg)
+
+            value = getattr(conf_group, name)
+            if not value:
+                if len(args) == 3:
+                    msg = args[2]
+                else:
+                    msg = "Config option %s.%s is false" % (group,
+                                                            name)
+                raise testtools.TestCase.skipException(msg)
+            return f(self, *func_args, **func_kwargs)
+        return wrapper
+    return decorator
+
+
+def skip_if_config(*args):
+    """Raise a skipException if a config exists and is True
+
+    :param str group: The first arg, the option group to check
+    :param str name: The second arg, the option name to check
+    :param str msg: Optional third arg, the skip msg to use if a skip is raised
+    :raises testtools.TestCase.skipException: If the specified config option
+        exists and evaluates to True
+    """
+    def decorator(f):
+        group = args[0]
+        name = args[1]
+
+        @functools.wraps(f)
+        def wrapper(self, *func_args, **func_kwargs):
+            if hasattr(CONF, group):
+                conf_group = getattr(CONF, group)
+                if hasattr(conf_group, name):
+                    value = getattr(conf_group, name)
+                    if value:
+                        if len(args) == 3:
+                            msg = args[2]
+                        else:
+                            msg = "Config option %s.%s is false" % (group,
+                                                                    name)
+                        raise testtools.TestCase.skipException(msg)
+            return f(self, *func_args, **func_kwargs)
+        return wrapper
+    return decorator
