@@ -25,8 +25,7 @@ Tempest Design Principles that we strive to live by.
   discover features of a cloud incorrectly, and give people an
   incorrect assessment of their cloud. Explicit is always better.
 - Tempest uses OpenStack public interfaces. Tests in Tempest should
-  only touch public interfaces, API calls (native or 3rd party),
-  or libraries.
+  only touch public OpenStack APIs.
 - Tempest should not touch private or implementation specific
   interfaces. This means not directly going to the database, not
   directly hitting the hypervisors, not testing extensions not
@@ -71,12 +70,12 @@ as it is simpler, and quicker to work with.
    it's recommended that you copy or rename tempest.conf.sample to tempest.conf
    and make those changes to that file in /etc/tempest
 
-#. Setup a local working Tempest dir. This is done by using the tempest init
+#. Setup a local Tempest workspace. This is done by using the tempest init
    command::
 
     $ tempest init cloud-01
 
-   works the same as::
+   which also works the same as::
 
     $ mkdir cloud-01 && cd cloud-01 && tempest init
 
@@ -92,8 +91,19 @@ as it is simpler, and quicker to work with.
    any changes to it otherwise Tempest will not know how to load it.
 
 #. Once the configuration is done you're now ready to run Tempest. This can
-   be done with testr directly or any `testr`_ based test runner, like
-   `ostestr`_. For example, from the working dir running::
+   be done using the :ref:`tempest_run` command. This can be done by either
+   running::
+
+     $ tempest run
+
+   from the Tempest workspace directory. Or you can use the ``--workspace``
+   argument to run in the workspace you created regarless of your current
+   working directory. For example::
+
+     $ tempest run --workspace cloud-01
+
+   There is also the option to use testr directly, or any `testr`_ based test
+   runner, like `ostestr`_. For example, from the workspace dir run::
 
      $ ostestr --regex '(?!.*\[.*\bslow\b.*\])(^tempest\.(api|scenario))'
 
@@ -163,7 +173,7 @@ Unit Tests
 Tempest also has a set of unit tests which test the Tempest code itself. These
 tests can be run by specifying the test discovery path::
 
-    $> OS_TEST_PATH=./tempest/tests testr run --parallel
+    $ OS_TEST_PATH=./tempest/tests testr run --parallel
 
 By setting OS_TEST_PATH to ./tempest/tests it specifies that test discover
 should only be run on the unit test directory. The default value of OS_TEST_PATH
@@ -214,8 +224,8 @@ create and configure that.
 To start you need to create a configuration file. The easiest way to create a
 configuration file is to generate a sample in the ``etc/`` directory ::
 
-    $> cd $TEMPEST_ROOT_DIR
-    $> oslo-config-generator --config-file \
+    $ cd $TEMPEST_ROOT_DIR
+    $ oslo-config-generator --config-file \
         etc/config-generator.tempest.conf \
         --output-file etc/tempest.conf
 
@@ -237,21 +247,21 @@ used tool. Also, the nosetests test runner is **not** recommended to run Tempest
 After setting up your configuration file, you can execute the set of Tempest
 tests by using ``testr`` ::
 
-    $> testr run --parallel
+    $ testr run --parallel
 
 To run one single test serially ::
 
-    $> testr run tempest.api.compute.servers.test_servers_negative.ServersNegativeTestJSON.test_reboot_non_existent_server
+    $ testr run tempest.api.compute.servers.test_servers_negative.ServersNegativeTestJSON.test_reboot_non_existent_server
 
 Alternatively, you can use the run_tempest.sh script which will create a venv
 and run the tests or use tox to do the same. Tox also contains several existing
 job configurations. For example::
 
-   $> tox -efull
+   $ tox -efull
 
 which will run the same set of tests as the OpenStack gate. (it's exactly how
 the gate invokes Tempest) Or::
 
-  $> tox -esmoke
+  $ tox -esmoke
 
 to run the tests tagged as smoke.
