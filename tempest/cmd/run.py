@@ -23,9 +23,9 @@ Tempest run has several options:
                    any tests that match on re.match() with the regex
  * **--smoke**: Run all the tests tagged as smoke
 
-There are also the **--blacklist_file** and **--whitelist_file** options that
+There are also the **--blacklist-file** and **--whitelist-file** options that
 let you pass a filepath to tempest run with the file format being a line
-seperated regex, with '#' used to signify the start of a comment on a line.
+separated regex, with '#' used to signify the start of a comment on a line.
 For example::
 
     # Regex file
@@ -88,7 +88,6 @@ import threading
 from cliff import command
 from os_testr import regex_builder
 from os_testr import subunit_trace
-from oslo_log import log as logging
 from testrepository.commands import run_argv
 
 from tempest.cmd import init
@@ -96,7 +95,6 @@ from tempest.cmd import workspace
 from tempest import config
 
 
-LOG = logging.getLogger(__name__)
 CONF = config.CONF
 
 
@@ -193,11 +191,11 @@ class TempestRun(command.Command):
                            help='A normal testr selection regex used to '
                                 'specify a subset of tests to run')
         list_selector = parser.add_mutually_exclusive_group()
-        list_selector.add_argument('--whitelist_file',
+        list_selector.add_argument('--whitelist-file', '--whitelist_file',
                                    help="Path to a whitelist file, this file "
-                                        "contains a seperate regex on each "
+                                        "contains a separate regex on each "
                                         "newline.")
-        list_selector.add_argument('--blacklist_file',
+        list_selector.add_argument('--blacklist-file', '--blacklist_file',
                                    help='Path to a blacklist file, this file '
                                         'contains a separate regex exclude on '
                                         'each newline')
@@ -205,7 +203,7 @@ class TempestRun(command.Command):
         parser.add_argument('--list-tests', '-l', action='store_true',
                             help='List tests',
                             default=False)
-        # exectution args
+        # execution args
         parser.add_argument('--concurrency', '-w',
                             help="The number of workers to use, defaults to "
                                  "the number of cpus")
