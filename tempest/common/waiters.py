@@ -53,9 +53,7 @@ def wait_for_server_status(client, server_id, status, ready_wait=True,
                     return
                 # NOTE(afazekas): The instance is in "ready for action state"
                 # when no task in progress
-                # NOTE(afazekas): Converted to string because of the XML
-                # responses
-                if str(task_state) == "None":
+                if task_state is None:
                     # without state api extension 3 sec usually enough
                     time.sleep(CONF.compute.ready_wait)
                     return
@@ -141,7 +139,7 @@ def wait_for_image_status(client, image_id, status):
     while int(time.time()) - start < client.build_timeout:
         image = show_image(image_id)
         # Compute image client returns response wrapped in 'image' element
-        # which is not case with Glance image client.
+        # which is not the case with Glance image client.
         if 'image' in image:
             image = image['image']
 
