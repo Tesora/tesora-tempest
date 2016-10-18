@@ -17,10 +17,6 @@
 from tempest.lib import exceptions
 
 
-class InvalidConfiguration(exceptions.TempestException):
-    message = "Invalid Configuration"
-
-
 class InvalidServiceTag(exceptions.TempestException):
     message = "Invalid service tag"
 
@@ -51,10 +47,6 @@ class VolumeRestoreErrorException(exceptions.TempestException):
 
 class SnapshotBuildErrorException(exceptions.TempestException):
     message = "Snapshot %(snapshot_id)s failed to build and is in ERROR status"
-
-
-class VolumeBackupException(exceptions.TempestException):
-    message = "Volume backup %(backup_id)s failed and is in ERROR status"
 
 
 class StackBuildErrorException(exceptions.TempestException):

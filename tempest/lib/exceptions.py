@@ -149,6 +149,10 @@ class UnexpectedResponseCode(OtherRestClientException):
     message = "Unexpected response code received"
 
 
+class InvalidConfiguration(TempestException):
+    message = "Invalid Configuration"
+
+
 class InvalidIdentityVersion(TempestException):
     message = "Invalid version %(identity_version)s of the identity service"
 
@@ -239,3 +243,7 @@ class ServiceClientRegistrationException(TempestException):
 
 class PluginRegistrationException(TempestException):
     message = "Error registering plugin %(name)s: %(detailed_error)s"
+
+
+class VolumeBackupException(TempestException):
+    message = "Volume backup %(backup_id)s failed and is in ERROR status"
