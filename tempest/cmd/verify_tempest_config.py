@@ -46,7 +46,7 @@ def _get_config_file():
     conf_dir = os.environ.get('TEMPEST_CONFIG_DIR', default_config_dir)
     conf_file = os.environ.get('TEMPEST_CONFIG', default_config_file)
     path = os.path.join(conf_dir, conf_file)
-    fd = open(path, 'rw')
+    fd = open(path, 'r+')
     return fd
 
 
@@ -286,7 +286,6 @@ def check_service_availability(os, update):
         'object_storage': 'swift',
         'compute': 'nova',
         'orchestration': 'heat',
-        'data_processing': 'sahara',
         'baremetal': 'ironic',
         'identity': 'keystone',
     }
@@ -370,10 +369,9 @@ def main(opts=None):
     replace = opts.replace_ext
     global CONF_PARSER
 
-    outfile = sys.stdout
     if update:
         conf_file = _get_config_file()
-        CONF_PARSER = moves.configparser.SafeConfigParser()
+        CONF_PARSER = moves.configparser.ConfigParser()
         CONF_PARSER.optionxform = str
         CONF_PARSER.readfp(conf_file)
 

@@ -245,7 +245,7 @@ ComputeGroup = [
                     "projects. If multiple networks are available for a "
                     "project, this is the network which will be used for "
                     "creating servers if tempest does not create a network or "
-                    "s network is not specified elsewhere. It may be used for "
+                    "a network is not specified elsewhere. It may be used for "
                     "ssh validation only if floating IPs are disabled."),
     cfg.StrOpt('catalog_type',
                default='compute',
@@ -304,6 +304,12 @@ compute_features_group = cfg.OptGroup(name='compute-feature-enabled',
                                       title="Enabled Compute Service Features")
 
 ComputeFeaturesGroup = [
+    # NOTE(mriedem): This is a feature toggle for bug 1175464 which is fixed in
+    # mitaka and newton. This option can be removed after liberty-eol.
+    cfg.BoolOpt('allow_port_security_disabled',
+                default=False,
+                help='Does the test environment support creating ports in a '
+                     'network where port security is disabled?'),
     cfg.BoolOpt('disk_config',
                 default=True,
                 help="If false, skip disk config tests"),
@@ -312,7 +318,13 @@ ComputeFeaturesGroup = [
                 help='A list of enabled compute extensions with a special '
                      'entry all which indicates every extension is enabled. '
                      'Each extension should be specified with alias name. '
-                     'Empty list indicates all extensions are disabled'),
+                     'Empty list indicates all extensions are disabled',
+                     deprecated_for_removal=True,
+                     deprecated_reason='The Nova extensions API and mechanism '
+                                       'is deprecated. This option will be '
+                                       'removed when all releases supported '
+                                       'by tempest no longer contain the Nova '
+                                       'extensions API and mechanism.'),
     cfg.BoolOpt('change_password',
                 default=False,
                 help="Does the test environment support changing the admin "
@@ -333,10 +345,12 @@ ComputeFeaturesGroup = [
     cfg.BoolOpt('suspend',
                 default=True,
                 help="Does the test environment support suspend/resume?"),
+    cfg.BoolOpt('cold_migration',
+                default=True,
+                help="Does the test environment support cold migration?"),
     cfg.BoolOpt('live_migration',
                 default=True,
-                help="Does the test environment support live migration "
-                     "available?"),
+                help="Does the test environment support live migration?"),
     cfg.BoolOpt('metadata_service',
                 default=True,
                 help="Does the test environment support metadata service? "
@@ -370,7 +384,8 @@ ComputeFeaturesGroup = [
                 default=True,
                 help='Enables returning of the instance password by the '
                      'relevant server API calls such as create, rebuild '
-                     'or rescue.'),
+                     'or rescue. This configuration value should be same as '
+                     'nova.conf: DEFAULT.enable_instance_password'),
     cfg.BoolOpt('interface_attach',
                 default=True,
                 help='Does the test environment support dynamic network '
@@ -403,7 +418,10 @@ ComputeFeaturesGroup = [
                      "list indicates all filters are disabled. The full "
                      "available list of filters is in nova.conf: "
                      "DEFAULT.scheduler_available_filters"),
-
+    cfg.BoolOpt('swap_volume',
+                default=False,
+                help='Does the test environment support in-place swapping of '
+                     'volumes attached to a server instance?'),
 ]
 
 
@@ -539,6 +557,15 @@ NetworkGroup = [
                 default=["1.0.0.0/16", "2.0.0.0/16"],
                 help="List of ip pools"
                      " for subnetpools creation"),
+    # TODO(ylobankov): Delete this option once the Liberty release is EOL.
+    cfg.BoolOpt('dvr_extra_resources',
+                default=True,
+                help="Whether or not to create internal network, subnet, "
+                     "port and add network interface to distributed router "
+                     "in L3 agent scheduler test. Extra resources need to be "
+                     "provisioned in order to bind router to L3 agent in the "
+                     "Liberty release or older, and are not required since "
+                     "the Mitaka release.")
 ]
 
 network_feature_group = cfg.OptGroup(name='network-feature-enabled',
@@ -564,6 +591,9 @@ NetworkFeaturesGroup = [
                 default=True,
                 help="Does the test environment support changing"
                      " port admin state"),
+    cfg.BoolOpt('port_security',
+                default=False,
+                help="Does the test environment support port security?"),
 ]
 
 validation_group = cfg.OptGroup(name='validation',
@@ -869,34 +899,6 @@ OrchestrationGroup = [
                help="Value must match heat configuration of the same name."),
 ]
 
-data_processing_group = cfg.OptGroup(name="data-processing",
-                                     title="Data Processing options")
-
-DataProcessingGroup = [
-    cfg.StrOpt('catalog_type',
-               default='data-processing',
-               deprecated_group="data_processing",
-               help="Catalog type of the data processing service."),
-    cfg.StrOpt('endpoint_type',
-               default='publicURL',
-               choices=['public', 'admin', 'internal',
-                        'publicURL', 'adminURL', 'internalURL'],
-               deprecated_group="data_processing",
-               help="The endpoint type to use for the data processing "
-                    "service."),
-]
-
-
-data_processing_feature_group = cfg.OptGroup(
-    name="data-processing-feature-enabled",
-    title="Enabled Data Processing features")
-
-DataProcessingFeaturesGroup = [
-    cfg.ListOpt('plugins',
-                default=["vanilla", "cdh"],
-                deprecated_group="data_processing-feature-enabled",
-                help="List of enabled data processing plugins")
-]
 
 stress_group = cfg.OptGroup(name='stress', title='Stress Test Options')
 
@@ -1143,8 +1145,6 @@ _opts = [
     (object_storage_group, ObjectStoreGroup),
     (object_storage_feature_group, ObjectStoreFeaturesGroup),
     (orchestration_group, OrchestrationGroup),
-    (data_processing_group, DataProcessingGroup),
-    (data_processing_feature_group, DataProcessingFeaturesGroup),
     (stress_group, StressGroup),
     (scenario_group, ScenarioGroup),
     (service_available_group, ServiceAvailableGroup),
@@ -1210,9 +1210,6 @@ class TempestConfigPrivate(object):
         self.object_storage_feature_enabled = _CONF[
             'object-storage-feature-enabled']
         self.orchestration = _CONF.orchestration
-        self.data_processing = _CONF['data-processing']
-        self.data_processing_feature_enabled = _CONF[
-            'data-processing-feature-enabled']
         self.stress = _CONF.stress
         self.scenario = _CONF.scenario
         self.service_available = _CONF.service_available

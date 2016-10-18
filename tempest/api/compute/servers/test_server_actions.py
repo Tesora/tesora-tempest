@@ -24,7 +24,6 @@ from tempest.common.utils import data_utils
 from tempest.common.utils.linux import remote_client
 from tempest.common import waiters
 from tempest import config
-from tempest import exceptions
 from tempest.lib import decorators
 from tempest.lib import exceptions as lib_exc
 from tempest import test
@@ -81,14 +80,19 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
     @testtools.skipUnless(CONF.compute_feature_enabled.change_password,
                           'Change password not available.')
     def test_change_server_password(self):
+        # Since this test messes with the password and makes the
+        # server unreachable, it should create its own server
+        newserver = self.create_test_server(
+            validatable=True,
+            wait_until='ACTIVE')
         # The server's password should be set to the provided password
         new_password = 'Newpass1234'
-        self.client.change_password(self.server_id, adminPass=new_password)
-        waiters.wait_for_server_status(self.client, self.server_id, 'ACTIVE')
+        self.client.change_password(newserver['id'], adminPass=new_password)
+        waiters.wait_for_server_status(self.client, newserver['id'], 'ACTIVE')
 
         if CONF.validation.run_validation:
             # Verify that the user can authenticate with the new password
-            server = self.client.show_server(self.server_id)['server']
+            server = self.client.show_server(newserver['id'])['server']
             linux_client = remote_client.RemoteClient(
                 self.get_server_ip(server),
                 self.ssh_user,
@@ -235,20 +239,10 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
     @test.services('volume')
     def test_rebuild_server_with_volume_attached(self):
         # create a new volume and attach it to the server
-        volume = self.volumes_client.create_volume(
-            size=CONF.volume.volume_size)
-        volume = volume['volume']
-        self.addCleanup(self.volumes_client.delete_volume, volume['id'])
-        waiters.wait_for_volume_status(self.volumes_client, volume['id'],
-                                       'available')
+        volume = self.create_volume()
 
-        self.client.attach_volume(self.server_id, volumeId=volume['id'])
-        self.addCleanup(waiters.wait_for_volume_status, self.volumes_client,
-                        volume['id'], 'available')
-        self.addCleanup(self.client.detach_volume,
-                        self.server_id, volume['id'])
-        waiters.wait_for_volume_status(self.volumes_client, volume['id'],
-                                       'in-use')
+        server = self.client.show_server(self.server_id)['server']
+        self.attach_volume(server, volume)
 
         # run general rebuild test
         self.test_rebuild_server()
@@ -336,7 +330,7 @@ class ServerActionsTestJSON(base.BaseV2ComputeTest):
         elif CONF.image_feature_enabled.api_v2:
             glance_client = self.os.image_client_v2
         else:
-            raise exceptions.InvalidConfiguration(
+            raise lib_exc.InvalidConfiguration(
                 'Either api_v1 or api_v2 must be True in '
                 '[image-feature-enabled].')
 

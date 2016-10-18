@@ -15,7 +15,7 @@
 
 
 from tempest import config
-from tempest import exceptions
+from tempest.lib import exceptions
 from tempest.scenario import manager
 from tempest import test
 
@@ -42,7 +42,6 @@ class TestServerMultinode(manager.ScenarioTest):
         # this is needed so that we can use the availability_zone:host
         # scheduler hint, which is admin_only by default
         cls.servers_client = cls.admin_manager.servers_client
-        super(TestServerMultinode, cls).resource_setup()
 
     @test.idempotent_id('9cecbe35-b9d4-48da-a37e-7ce70aa43d30')
     @test.attr(type='smoke')

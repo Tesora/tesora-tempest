@@ -18,8 +18,8 @@ from tempest.api.volume import base
 from tempest.common.utils import data_utils
 from tempest.common import waiters
 from tempest import config
-from tempest import exceptions
 from tempest.lib.common.utils import test_utils
+from tempest.lib import exceptions
 from tempest import test
 
 CONF = config.CONF
@@ -45,34 +45,23 @@ class VolumesV2ActionsTest(base.BaseVolumeTest):
     @classmethod
     def resource_setup(cls):
         super(VolumesV2ActionsTest, cls).resource_setup()
-        # Create a test shared instance
-        srv_name = data_utils.rand_name(cls.__name__ + '-Instance')
-        cls.server = cls.create_server(
-            name=srv_name,
-            wait_until='ACTIVE')
 
         # Create a test shared volume for attach/detach tests
         cls.volume = cls.create_volume()
-        waiters.wait_for_volume_status(cls.client,
-                                       cls.volume['id'], 'available')
-
-    @classmethod
-    def resource_cleanup(cls):
-        # Delete the test instance
-        cls.servers_client.delete_server(cls.server['id'])
-        waiters.wait_for_server_termination(cls.servers_client,
-                                            cls.server['id'])
-
-        super(VolumesV2ActionsTest, cls).resource_cleanup()
 
     @test.idempotent_id('fff42874-7db5-4487-a8e1-ddda5fb5288d')
     @test.stresstest(class_setup_per='process')
     @test.attr(type='smoke')
     @test.services('compute')
     def test_attach_detach_volume_to_instance(self):
+        # Create a server
+        srv_name = data_utils.rand_name(self.__class__.__name__ + '-Instance')
+        server = self.create_server(
+            name=srv_name,
+            wait_until='ACTIVE')
         # Volume is attached and detached successfully from an instance
         self.client.attach_volume(self.volume['id'],
-                                  instance_uuid=self.server['id'],
+                                  instance_uuid=server['id'],
                                   mountpoint='/dev/%s' %
                                              CONF.compute.volume_device_name)
         waiters.wait_for_volume_status(self.client,
@@ -99,26 +88,30 @@ class VolumesV2ActionsTest(base.BaseVolumeTest):
     @test.stresstest(class_setup_per='process')
     @test.services('compute')
     def test_get_volume_attachment(self):
+        # Create a server
+        srv_name = data_utils.rand_name(self.__class__.__name__ + '-Instance')
+        server = self.create_server(
+            name=srv_name,
+            wait_until='ACTIVE')
         # Verify that a volume's attachment information is retrieved
         self.client.attach_volume(self.volume['id'],
-                                  instance_uuid=self.server['id'],
+                                  instance_uuid=server['id'],
                                   mountpoint='/dev/%s' %
                                              CONF.compute.volume_device_name)
         waiters.wait_for_volume_status(self.client,
                                        self.volume['id'], 'in-use')
-        # NOTE(gfidente): added in reverse order because functions will be
-        # called in reverse order to the order they are added (LIFO)
         self.addCleanup(waiters.wait_for_volume_status, self.client,
                         self.volume['id'],
                         'available')
         self.addCleanup(self.client.detach_volume, self.volume['id'])
         volume = self.client.show_volume(self.volume['id'])['volume']
         self.assertIn('attachments', volume)
-        attachment = self.client.get_attachment_from_volume(volume)
+        attachment = volume['attachments'][0]
+
         self.assertEqual('/dev/%s' %
                          CONF.compute.volume_device_name,
                          attachment['device'])
-        self.assertEqual(self.server['id'], attachment['server_id'])
+        self.assertEqual(server['id'], attachment['server_id'])
         self.assertEqual(self.volume['id'], attachment['id'])
         self.assertEqual(self.volume['id'], attachment['volume_id'])
 
@@ -159,24 +152,15 @@ class VolumesV2ActionsTest(base.BaseVolumeTest):
 
     @test.idempotent_id('fff74e1e-5bd3-4b33-9ea9-24c103bc3f59')
     def test_volume_readonly_update(self):
-        # Update volume readonly true
-        readonly = True
-        self.client.update_volume_readonly(self.volume['id'],
-                                           readonly=readonly)
-        # Get Volume information
-        fetched_volume = self.client.show_volume(self.volume['id'])['volume']
-        bool_flag = self._is_true(fetched_volume['metadata']['readonly'])
-        self.assertEqual(True, bool_flag)
-
-        # Update volume readonly false
-        readonly = False
-        self.client.update_volume_readonly(self.volume['id'],
-                                           readonly=readonly)
-
-        # Get Volume information
-        fetched_volume = self.client.show_volume(self.volume['id'])['volume']
-        bool_flag = self._is_true(fetched_volume['metadata']['readonly'])
-        self.assertEqual(False, bool_flag)
+        for readonly in [True, False]:
+            # Update volume readonly
+            self.client.update_volume_readonly(self.volume['id'],
+                                               readonly=readonly)
+            # Get Volume information
+            fetched_volume = self.client.show_volume(
+                self.volume['id'])['volume']
+            bool_flag = self._is_true(fetched_volume['metadata']['readonly'])
+            self.assertEqual(readonly, bool_flag)
 
 
 class VolumesV1ActionsTest(VolumesV2ActionsTest):
