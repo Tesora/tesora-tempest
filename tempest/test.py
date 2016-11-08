@@ -25,12 +25,12 @@ import six
 import testtools
 
 from tempest import clients
-from tempest.common import cred_client
 from tempest.common import credentials_factory as credentials
 from tempest.common import fixed_network
 import tempest.common.validation_resources as vresources
 from tempest import config
 from tempest import exceptions
+from tempest.lib.common import cred_client
 from tempest.lib.common.utils import test_utils
 from tempest.lib import decorators
 from tempest.lib import exceptions as lib_exc
@@ -99,32 +99,6 @@ def services(*args):
                     raise testtools.TestCase.skipException(msg)
             return f(self, *func_args, **func_kwargs)
         return wrapper
-    return decorator
-
-
-def stresstest(**kwargs):
-    """Add stress test decorator
-
-    For all functions with this decorator a attr stress will be
-    set automatically.
-
-    @param class_setup_per: allowed values are application, process, action
-           ``application``: once in the stress job lifetime
-           ``process``: once in the worker process lifetime
-           ``action``: on each action
-    @param allow_inheritance: allows inheritance of this attribute
-    """
-    def decorator(f):
-        if 'class_setup_per' in kwargs:
-            setattr(f, "st_class_setup_per", kwargs['class_setup_per'])
-        else:
-            setattr(f, "st_class_setup_per", 'process')
-        if 'allow_inheritance' in kwargs:
-            setattr(f, "st_allow_inheritance", kwargs['allow_inheritance'])
-        else:
-            setattr(f, "st_allow_inheritance", False)
-        attr(type='stress')(f)
-        return f
     return decorator
 
 
